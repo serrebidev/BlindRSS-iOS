@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Fix Miniflux sync never finishing with large accounts. Sync used to fetch entries feed by feed (698 sequential requests on the reference account). It now uses the global entries endpoint, newest 2,000 entries in pages of 500, with progress announcements.
+- Bare server addresses like rss.example.com now get https:// automatically.
+- Sync failures are shown and announced instead of failing silently.
+
 ## 0.1.0
 
 First iOS release. Native SwiftUI port of BlindRSS for desktop.

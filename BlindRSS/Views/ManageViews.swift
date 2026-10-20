@@ -315,6 +315,7 @@ struct ProviderSettingsView: View {
     @State private var username = ""
     @State private var token = ""
     @State private var isSyncing = false
+    @State private var statusMessage: String?
 
     var body: some View {
         Form {
@@ -332,16 +333,34 @@ struct ProviderSettingsView: View {
             } header: { Text("Account").accessibilityAddTraits(.isHeader) }
 
             Section {
-                Button(isSyncing ? "Syncing" : "Save and Sync Now") {
-                    HostedConfig(kind: kind, baseURL: baseURL, username: username, token: token).save()
+                Button(isSyncing ? "Syncing, please wait" : "Save and Sync Now") {
+                    HostedConfig(kind: kind, baseURL: HostedSync.normalizedBaseURL(baseURL),
+                                 username: username, token: token.trimmingCharacters(in: .whitespacesAndNewlines)).save()
                     Task {
                         isSyncing = true
-                        if let config = HostedConfig.load() { _ = try? await HostedSync().sync(config: config, in: context) }
+                        statusMessage = "Connecting."
+                        do {
+                            if let config = HostedConfig.load() {
+                                let added = try await HostedSync().sync(config: config, in: context)
+                                statusMessage = "Sync complete. \(added) new articles."
+                            }
+                        } catch {
+                            statusMessage = "Sync failed: \(error.localizedDescription)"
+                            Announcer.announce("Sync failed. \(error.localizedDescription)")
+                        }
                         isSyncing = false
                     }
                 }
                 .disabled(token.isEmpty || isSyncing)
                 .accessibilityHint("Saves the account and pulls feeds and articles into this device.")
+                if isSyncing {
+                    ProgressView("Syncing feeds and articles")
+                        .accessibilityLabel("Syncing feeds and articles")
+                }
+                if let statusMessage {
+                    Text(statusMessage)
+                        .accessibilityLabel(statusMessage)
+                }
                 Button("Remove Account", role: .destructive) {
                     HostedConfig.clear(); token = ""
                     Announcer.announce("Hosted account removed from this device.")

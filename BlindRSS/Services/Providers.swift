@@ -82,23 +82,45 @@ final class HostedSync {
     private struct MFCat: Decodable { let title: String }
     private struct MFEntries: Decodable { let entries: [MFEntry] }
     private struct MFEntry: Decodable {
-        let id: Int; let title: String; let url: String; let content: String?
+        let id: Int; let feed_id: Int; let title: String; let url: String; let content: String?
         let published_at: String?; let author: String?; let status: String
         let starred: Bool; let enclosures: [MFEnclosure]?
     }
     private struct MFEnclosure: Decodable { let url: String; let mime_type: String? }
 
+    /// Miniflux sync. The old version fetched entries feed by feed: with
+    /// 698 feeds that is 698 sequential requests and it looks frozen.
+    /// This uses the global entries endpoint in pages of 500 instead:
+    /// newest 2,000 entries in four requests, grouped by feed_id locally.
     private func syncMiniflux(config: HostedConfig, in context: ModelContext) async throws -> Int {
         let feeds: [MFFeed] = try await request(config: config, path: "/v1/feeds", decode: [MFFeed].self)
-        var added = 0
+        var feedsByID: [String: Feed] = [:]
         for mfeed in feeds {
             let feedID = "miniflux:\(mfeed.id)"
-            let feed = fetchOrCreateFeed(id: feedID, title: mfeed.title, url: mfeed.feed_url,
-                                         category: mfeed.category?.title ?? Category.uncategorized, in: context)
-            let entries: MFEntries = try await request(config: config, path: "/v1/feeds/\(mfeed.id)/entries?limit=100", decode: MFEntries.self)
-            for entry in entries.entries {
+            feedsByID[feedID] = fetchOrCreateFeed(id: feedID, title: mfeed.title, url: mfeed.feed_url,
+                                                  category: mfeed.category?.title ?? Category.uncategorized, in: context)
+        }
+        try context.save()
+        Announcer.announce("Found \(feeds.count) feeds. Fetching articles.")
+
+        let pageSize = 500
+        let maxEntries = 2000
+        var fetched = 0
+        var added = 0
+        while fetched < maxEntries {
+            let page: MFEntries = try await request(
+                config: config,
+                path: "/v1/entries?order=published_at&direction=desc&limit=\(pageSize)&offset=\(fetched)",
+                decode: MFEntries.self)
+            if page.entries.isEmpty { break }
+            for entry in page.entries {
+                guard let feed = feedsByID["miniflux:\(entry.feed_id)"] else { continue }
                 let articleID = "miniflux:\(entry.id)"
-                if feed.articles.contains(where: { $0.id == articleID }) { continue }
+                if let existing = feed.articles.first(where: { $0.id == articleID }) {
+                    existing.isRead = entry.status == "read"
+                    existing.isFavorite = entry.starred
+                    continue
+                }
                 let article = Article(id: articleID, title: entry.title, url: entry.url,
                                       content: entry.content ?? "", dateRaw: entry.published_at ?? "",
                                       author: entry.author ?? "", isRead: entry.status == "read",
@@ -110,9 +132,12 @@ final class HostedSync {
                 context.insert(article)
                 added += 1
             }
+            fetched += page.entries.count
+            try context.save()
+            Announcer.announce("Fetched \(fetched) articles.")
+            if page.entries.count < pageSize { break }
         }
-        try context.save()
-        Announcer.announce("Hosted sync complete. \(added) new articles.")
+        Announcer.announce("Miniflux sync complete. \(added) new articles from \(feeds.count) feeds.")
         return added
     }
 
@@ -175,10 +200,21 @@ final class HostedSync {
         return feed
     }
 
+    /// Adds https:// when the user typed a bare host like rss.example.com.
+    static func normalizedBaseURL(_ raw: String) -> String {
+        var base = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if !base.hasPrefix("http://"), !base.hasPrefix("https://") {
+            base = "https://" + base
+        }
+        return base
+    }
+
     private func request<T: Decodable>(config: HostedConfig, path: String, decode: T.Type) async throws -> T {
-        let base = config.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let url = URL(string: base + path) else { throw LibraryError.invalidURL }
+        let base = Self.normalizedBaseURL(config.baseURL)
+        guard let url = URL(string: base + path), url.scheme != nil else { throw LibraryError.invalidURL }
         var request = URLRequest(url: url)
+        request.timeoutInterval = 30
         if config.kind == .miniflux {
             request.setValue(config.token, forHTTPHeaderField: "X-Auth-Token")
         } else {

@@ -126,6 +126,14 @@ final class PodcastServiceTests: XCTestCase {
     }
 }
 
+final class HostedSyncTests: XCTestCase {
+    func testNormalizedBaseURLAddsScheme() {
+        XCTAssertEqual(HostedSync.normalizedBaseURL("rss.example.com"), "https://rss.example.com")
+        XCTAssertEqual(HostedSync.normalizedBaseURL("https://rss.example.com/"), "https://rss.example.com")
+        XCTAssertEqual(HostedSync.normalizedBaseURL(" http://rss.example.com "), "http://rss.example.com")
+    }
+}
+
 final class YouTubeServiceTests: XCTestCase {
     func testVideoIDFromWatchURL() {
         XCTAssertEqual(YouTubeService.videoID(from: "https://www.youtube.com/watch?v=abc123XYZ"), "abc123XYZ")

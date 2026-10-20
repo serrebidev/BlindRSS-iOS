@@ -34,6 +34,7 @@
 		91E41F310F921FE3BD87D2CD /* YouTube.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0868126341D980E55EEFF387 /* YouTube.swift */; };
 		76273B1DC3DC2B1D4D7631E0 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845179F1A0551FC90514DF77 /* Models.swift */; };
 		232FAFD90932477BAA8AE9B7 /* PodcastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4390ABFD4FAAF2AF829B3448 /* PodcastService.swift */; };
+		D9D5A4F391297363EF3DA1DE /* Providers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D64AF4BCC653B66DA328E8F /* Providers.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +78,7 @@
 		0868126341D980E55EEFF387 /* YouTube.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/YouTube.swift"; sourceTree = "<group>"; };
 		845179F1A0551FC90514DF77 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Models/Models.swift"; sourceTree = "<group>"; };
 		4390ABFD4FAAF2AF829B3448 /* PodcastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/PodcastService.swift"; sourceTree = "<group>"; };
+		3D64AF4BCC653B66DA328E8F /* Providers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/Providers.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -168,6 +170,7 @@
 				0868126341D980E55EEFF387 /* YouTube.swift */,
 				845179F1A0551FC90514DF77 /* Models.swift */,
 				4390ABFD4FAAF2AF829B3448 /* PodcastService.swift */,
+				3D64AF4BCC653B66DA328E8F /* Providers.swift */,
 			);
 			path = BlindRSSTests;
 			sourceTree = "<group>";
@@ -314,6 +317,7 @@
 				91E41F310F921FE3BD87D2CD /* YouTube.swift in Sources */,
 				76273B1DC3DC2B1D4D7631E0 /* Models.swift in Sources */,
 				232FAFD90932477BAA8AE9B7 /* PodcastService.swift in Sources */,
+				D9D5A4F391297363EF3DA1DE /* Providers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -352,14 +356,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				ENABLE_TESTING = YES;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -376,14 +380,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				ENABLE_TESTING = YES;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
