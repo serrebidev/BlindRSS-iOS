@@ -2,6 +2,7 @@
 // This file is part of BlindRSS
 // SPDX-License-Identifier: MIT
 
+import SwiftData
 import XCTest
 
 
@@ -124,6 +125,18 @@ final class PodcastServiceTests: XCTestCase {
         XCTAssertEqual(FeedParser.parseTimestamp("1:02:30"), 3750)
         XCTAssertNil(FeedParser.parseTimestamp("soon"))
     }
+
+    /// Shared formatters must keep every supported format working.
+    func testDateParsingFormats() {
+        let expected = Date(timeIntervalSince1970: 1_792_479_600) // 2026-10-20 07:00:00 UTC
+        XCTAssertEqual(FeedParser.parseDate("Tue, 20 Oct 2026 07:00:00 +0000"), expected)
+        XCTAssertEqual(FeedParser.parseDate("Tue, 20 Oct 2026 07:00:00 GMT"), expected)
+        XCTAssertEqual(FeedParser.parseDate("2026-10-20T07:00:00Z"), expected)
+        XCTAssertEqual(FeedParser.parseDate("2026-10-20T00:00:00-07:00"), expected)
+        XCTAssertEqual(FeedParser.parseDate("2026-10-20T07:00:00.000Z"), expected)
+        XCTAssertNil(FeedParser.parseDate("not a date"))
+        XCTAssertNil(FeedParser.parseDate(" "))
+    }
 }
 
 final class HostedSyncTests: XCTestCase {
@@ -131,6 +144,17 @@ final class HostedSyncTests: XCTestCase {
         XCTAssertEqual(HostedSync.normalizedBaseURL("rss.example.com"), "https://rss.example.com")
         XCTAssertEqual(HostedSync.normalizedBaseURL("https://rss.example.com/"), "https://rss.example.com")
         XCTAssertEqual(HostedSync.normalizedBaseURL(" http://rss.example.com "), "http://rss.example.com")
+    }
+
+    /// Hosted feeds refresh through the account, never by feed URL.
+    func testHostedFeedDetection() throws {
+        // SwiftData models need a live container for their type.
+        let container = try ModelContainer(for: Feed.self, Article.self, Chapter.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        defer { _ = container }
+        XCTAssertTrue(Feed(id: "miniflux:12", url: "https://a.example/feed", title: "A").isHosted)
+        XCTAssertTrue(Feed(id: "greader:inoreader:feed/x", url: "", title: "B").isHosted)
+        XCTAssertFalse(Feed(id: "https://c.example/feed", url: "https://c.example/feed", title: "C").isHosted)
     }
 }
 

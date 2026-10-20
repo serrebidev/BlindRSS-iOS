@@ -14,18 +14,14 @@ struct ArticleReaderView: View {
     @State private var isFetchingFullText = false
     let article: Article
 
-    private var bodyText: String {
-        if let fullText { return fullText }
-        let content = HTMLText.plainText(from: article.content)
-        return content.isEmpty ? HTMLText.plainText(from: article.summary) : content
-    }
-
     private var youTubeID: String? { YouTubeService.videoID(from: article.url) }
-    private var descriptionChapters: [Chapter] {
-        YouTubeService.chapters(fromDescription: HTMLText.plainText(from: article.content))
-    }
 
     var body: some View {
+        // Strip the HTML once per render. Body text and description
+        // chapters each used to strip it, and chapters did so twice.
+        let plainContent = HTMLText.plainText(from: article.content)
+        let bodyText = fullText ?? (plainContent.isEmpty ? HTMLText.plainText(from: article.summary) : plainContent)
+        let descriptionChapters = YouTubeService.chapters(fromDescription: plainContent)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(article.title)

@@ -12,7 +12,6 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AudioPlayer.self) private var player
     @Environment(\.modelContext) private var context
-    @Query private var allArticlesForQueue: [Article]
     @State private var selectedFeed: Feed?
     @State private var selectedView: LibrarySelection = .all
     @State private var selectedArticle: Article?
@@ -80,8 +79,14 @@ struct ContentView: View {
             article.isRead = true
             try? context.save()
         }
-        if player.queue.isEmpty {
-            player.restoreQueue(articles: allArticlesForQueue)
+        // Fetch only the queued articles. This used to be an @Query of the
+        // whole library on the root view, so every article change anywhere
+        // re-rendered the entire window.
+        let queuedIDs = AudioPlayer.persistedQueueIDs
+        if player.queue.isEmpty, !queuedIDs.isEmpty {
+            let queued = (try? context.fetch(FetchDescriptor<Article>(
+                predicate: #Predicate { queuedIDs.contains($0.id) }))) ?? []
+            player.restoreQueue(articles: queued)
         }
     }
 }

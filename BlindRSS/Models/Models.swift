@@ -41,7 +41,9 @@ final class Feed {
         self.articles = []
     }
 
-    var unreadCount: Int { articles.filter { !$0.isRead }.count }
+    /// Mirrored from a hosted account (Providers.swift id prefixes). These
+    /// refresh through the account, never by fetching their feed URL.
+    var isHosted: Bool { id.hasPrefix("miniflux:") || id.hasPrefix("greader:") }
 }
 
 /// Desktop table: articles (id, feed_id, title, url, content, description,

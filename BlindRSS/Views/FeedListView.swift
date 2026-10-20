@@ -22,21 +22,35 @@ struct FeedListView: View {
     @Binding var selection: LibrarySelection
     @Binding var selectedFeed: Feed?
 
-    private var categories: [String] {
-        Array(Set(feeds.map(\.category))).sorted()
+    /// Unread and favorite counts for the whole library in one pass.
+    /// Body computes this once per render and hands it to every row; it
+    /// used to be a computed property read three times per row, so 698
+    /// feeds meant about 2,000 full-library passes per render.
+    private struct Counts {
+        var unreadByFeedID: [String: Int] = [:]
+        var unread = 0
+        var favorites = 0
+        var errors = 0
     }
 
-    /// One pass over every article builds all unread counts. Rows used
-    /// to filter their feed's whole article list once per row render.
-    private var unreadByFeedID: [String: Int] {
-        var counts: [String: Int] = [:]
+    private func libraryCounts() -> Counts {
+        var counts = Counts()
         for feed in feeds {
-            counts[feed.id] = feed.articles.reduce(0) { $0 + ($1.isRead ? 0 : 1) }
+            var unread = 0
+            for article in feed.articles {
+                if !article.isRead { unread += 1 }
+                if article.isFavorite { counts.favorites += 1 }
+            }
+            counts.unreadByFeedID[feed.id] = unread
+            counts.unread += unread
+            if feed.lastError != nil { counts.errors += 1 }
         }
         return counts
     }
 
     var body: some View {
+        let counts = libraryCounts()
+        let feedsByCategory = Dictionary(grouping: feeds, by: \.category)
         List {
             Section {
                 ForEach(LibrarySelection.allCases) { view in
@@ -47,7 +61,7 @@ struct FeedListView: View {
                         Label(view.title, systemImage: view.systemImage)
                     }
                     .accessibilityLabel(view.title)
-                    .accessibilityValue(badgeValue(for: view))
+                    .accessibilityValue(badgeValue(for: view, counts: counts))
                     .accessibilityAddTraits(selection == view && selectedFeed == nil ? [.isSelected] : [])
                 }
             } header: {
@@ -55,10 +69,10 @@ struct FeedListView: View {
                     .accessibilityAddTraits(.isHeader)
             }
 
-            ForEach(categories, id: \.self) { category in
+            ForEach(feedsByCategory.keys.sorted(), id: \.self) { category in
                 Section {
-                    ForEach(feeds.filter { $0.category == category }) { feed in
-                        feedRow(feed)
+                    ForEach(feedsByCategory[category] ?? []) { feed in
+                        feedRow(feed, unread: counts.unreadByFeedID[feed.id] ?? 0)
                     }
                 } header: {
                     Text(category)
@@ -117,23 +131,20 @@ struct FeedListView: View {
         }
     }
 
-    private func badgeValue(for view: LibrarySelection) -> String {
-        let all = feeds.flatMap(\.articles)
+    private func badgeValue(for view: LibrarySelection, counts: Counts) -> String {
         switch view {
         case .unread:
-            let count = all.filter { !$0.isRead }.count
-            return count > 0 ? "\(count) unread" : ""
+            return counts.unread > 0 ? "\(counts.unread) unread" : ""
         case .favorites:
-            return "\(all.filter { $0.isFavorite }.count) favorites"
+            return "\(counts.favorites) favorites"
         case .errors:
-            let count = feeds.filter { $0.lastError != nil }.count
-            return count > 0 ? "\(count) feeds with errors" : ""
+            return counts.errors > 0 ? "\(counts.errors) feeds with errors" : ""
         default: return ""
         }
     }
 
     @ViewBuilder
-    private func feedRow(_ feed: Feed) -> some View {
+    private func feedRow(_ feed: Feed, unread: Int) -> some View {
         Button {
             selectedFeed = feed
             selection = .all
@@ -141,8 +152,8 @@ struct FeedListView: View {
             HStack {
                 Text(feed.title)
                 Spacer()
-                if (unreadByFeedID[feed.id] ?? 0) > 0 {
-                    Text("\(unreadByFeedID[feed.id] ?? 0)")
+                if unread > 0 {
+                    Text("\(unread)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -155,7 +166,7 @@ struct FeedListView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(feed.title)
-        .accessibilityValue(feedValue(feed))
+        .accessibilityValue(feedValue(feed, unread: unread))
         .accessibilityHint("Shows feed actions.")
         .accessibilityAddTraits(selectedFeed?.id == feed.id ? [.isSelected] : [])
         // Touch swipe actions.
@@ -187,9 +198,8 @@ struct FeedListView: View {
         } label: { Label("Delete", systemImage: "trash") }
     }
 
-    private func feedValue(_ feed: Feed) -> String {
+    private func feedValue(_ feed: Feed, unread: Int) -> String {
         var parts: [String] = []
-        let unread = unreadByFeedID[feed.id] ?? 0
         parts.append(unread > 0 ? "\(unread) unread" : "no unread")
         if let error = feed.lastError { parts.append("Error: \(error)") }
         return parts.joined(separator: ", ")

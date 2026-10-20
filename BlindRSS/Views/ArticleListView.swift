@@ -34,31 +34,33 @@ struct ArticleListView: View {
     let feed: Feed?
     @Binding var selectedArticle: Article?
 
-    private var articles: [Article] {
-        var result = feed != nil ? allArticles.filter { $0.feed?.id == feed?.id } : allArticles
-        result = result.filter { selection.includes($0) }
-        if !searchText.isEmpty {
+    /// One filtering pass. Body calls this once per render and shares the
+    /// result with the list, rotors, and toolbar; it used to be a computed
+    /// property evaluated five times per render, each a full filter and sort.
+    private func filteredArticles() -> [Article] {
+        let feedID = feed?.id
+        var result = allArticles.filter { article in
+            if let feedID, article.feed?.id != feedID { return false }
+            if !selection.includes(article) { return false }
+            switch mediaFilter {
+            case "with": if !article.hasMedia { return false }
+            case "without": if article.hasMedia { return false }
+            default: break
+            }
             // Raw content search only: stripping HTML for every article
             // on every render was the list's biggest CPU cost.
-            result = result.filter {
-                $0.title.localizedCaseInsensitiveContains(searchText)
-                    || $0.content.localizedCaseInsensitiveContains(searchText)
-                    || $0.author.localizedCaseInsensitiveContains(searchText)
-            }
+            return searchText.isEmpty
+                || article.title.localizedCaseInsensitiveContains(searchText)
+                || article.content.localizedCaseInsensitiveContains(searchText)
+                || article.author.localizedCaseInsensitiveContains(searchText)
         }
-        switch mediaFilter {
-        case "with": result = result.filter { $0.hasMedia }
-        case "without": result = result.filter { !$0.hasMedia }
-        default: break
-        }
-        result.sort { a, b in
-            let da = a.date ?? .distantPast, db = b.date ?? .distantPast
-            return sortNewestFirst ? da > db : da < db
-        }
+        // The query already sorts newest first.
+        if !sortNewestFirst { result.reverse() }
         return result
     }
 
     var body: some View {
+        let articles = filteredArticles()
         Group {
             if articles.isEmpty {
                 ContentUnavailableView("No Articles", systemImage: "doc.text",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Fix high CPU use that 0.1.1 did not solve. The feed list rebuilt unread counts for the whole library about three times per feed on every update, so a 698-feed account did thousands of full-library passes each time anything changed. Counts are now built once per update.
+- Refresh All no longer fetches every Miniflux or Google Reader feed URL directly. Hosted feeds refresh through the account, so a large account is a few requests instead of hundreds, and articles are no longer duplicated by refresh.
+- Refresh saves every 25 feeds instead of after each one, and only writes article fields that actually changed, so unchanged articles stop re-rendering the lists.
+- The main window no longer loads the whole library just to restore the play queue. The article list filters once per update instead of five times. Feed dates parse with shared formatters, and chapter loading fetches one article instead of the whole table.
+
 ## 0.1.1
 
 - Fix Miniflux sync never finishing with large accounts. Sync used to fetch entries feed by feed (698 sequential requests on the reference account). It now uses the global entries endpoint, newest 2,000 entries in pages of 500, with progress announcements.

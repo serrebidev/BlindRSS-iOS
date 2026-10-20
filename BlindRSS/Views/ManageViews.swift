@@ -409,10 +409,13 @@ struct FeedEditView: View {
 
 /// Downloads list (desktop Downloading Media) with the equalizer player.
 struct DownloadsView: View {
-    @Query(sort: \Article.date, order: .reverse) private var all: [Article]
-    private var downloaded: [Article] { all.filter { DownloadService.localURL(for: $0) != nil } }
+    // Only rows with a download: this used to load every article and
+    // check the disk for each one, twice per render.
+    @Query(filter: #Predicate<Article> { $0.localFileName != nil },
+           sort: \Article.date, order: .reverse) private var all: [Article]
 
     var body: some View {
+        let downloaded = all.filter { DownloadService.localURL(for: $0) != nil }
         Group {
             if downloaded.isEmpty {
                 ContentUnavailableView("No Downloads", systemImage: "arrow.down.circle",

@@ -113,15 +113,15 @@ final class HostedSync {
         let maxEntries = 2000
         var fetched = 0
         var added = 0
+        // Per-feed article dictionaries, built once per sync: replaces a
+        // linear scan of each feed's articles per entry.
+        var articlesByFeedID: [String: [String: Article]] = [:]
         while fetched < maxEntries {
             let page: MFEntries = try await request(
                 config: config,
                 path: "/v1/entries?order=published_at&direction=desc&limit=\(pageSize)&offset=\(fetched)",
                 decode: MFEntries.self)
             if page.entries.isEmpty { break }
-            // Per-feed article dictionaries built once per page set:
-            // replaces a linear scan of each feed's articles per entry.
-            var articlesByFeedID: [String: [String: Article]] = [:]
             for entry in page.entries {
                 guard let feed = feedsByID["miniflux:\(entry.feed_id)"] else { continue }
                 if articlesByFeedID[feed.id] == nil {
@@ -131,8 +131,11 @@ final class HostedSync {
                 }
                 let articleID = "miniflux:\(entry.id)"
                 if let existing = articlesByFeedID[feed.id]?[articleID] {
-                    existing.isRead = entry.status == "read"
-                    existing.isFavorite = entry.starred
+                    // Write only real changes: an unconditional write dirties
+                    // every synced article and re-renders every visible row.
+                    let isRead = entry.status == "read"
+                    if existing.isRead != isRead { existing.isRead = isRead }
+                    if existing.isFavorite != entry.starred { existing.isFavorite = entry.starred }
                     continue
                 }
                 let article = Article(id: articleID, title: entry.title, url: entry.url,
@@ -221,15 +224,6 @@ final class HostedSync {
     private func fetchAllFeedsByID(in context: ModelContext) -> [String: Feed] {
         let all = (try? context.fetch(FetchDescriptor<Feed>())) ?? []
         return Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
-    }
-
-    private func fetchOrCreateFeed(id: String, title: String, url: String, category: String, in context: ModelContext) -> Feed {
-        if let existing = (try? context.fetch(FetchDescriptor<Feed>()))?.first(where: { $0.id == id }) {
-            return existing
-        }
-        let feed = Feed(id: id, url: url, title: title, category: category)
-        context.insert(feed)
-        return feed
     }
 
     /// Adds https:// when the user typed a bare host like rss.example.com.

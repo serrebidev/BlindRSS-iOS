@@ -8,12 +8,13 @@ import Foundation
 /// Documents/Downloads so downloaded episodes play offline and can use
 /// the equalizer engine player.
 enum DownloadService {
-    static var downloadsDirectory: URL {
+    /// Resolved and created once, not on every lookup.
+    static let downloadsDirectory: URL = {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dir = base.appendingPathComponent("Downloads", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
-    }
+    }()
 
     static func localURL(for article: Article) -> URL? {
         guard let name = article.localFileName else { return nil }

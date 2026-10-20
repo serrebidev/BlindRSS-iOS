@@ -42,31 +42,53 @@ final class LibraryStore {
     }
 
     func refresh(feed: Feed, in context: ModelContext) async {
+        if feed.isHosted {
+            await syncHosted(in: context)
+            return
+        }
         guard let url = URL(string: feed.url) else { return }
         do {
             let parsed = try await fetchFeed(at: url)
             apply(parsed: parsed, to: feed, in: context)
+            try? context.save()
             await autoDownloadPodcasts(feed: feed)
         } catch {
             recordError(error, for: feed, in: context)
+            try? context.save()
         }
     }
 
-    private func apply(parsed: ParsedFeed, to feed: Feed, in context: ModelContext) {
-        if !feed.titleIsCustom { feed.title = parsed.title }
-        feed.lastError = nil
+    /// Hosted feeds (Miniflux, Google Reader API) refresh through their
+    /// account. Refresh All used to fetch each one's feed URL directly:
+    /// 698 requests for the reference Miniflux account, and the results
+    /// were stored again under local ids, duplicating every article.
+    @discardableResult
+    private func syncHosted(in context: ModelContext) async -> Int {
+        guard let config = HostedConfig.load() else { return 0 }
+        do {
+            return try await HostedSync().sync(config: config, in: context)
+        } catch {
+            Announcer.announce("Sync failed. \(error.localizedDescription)")
+            return 0
+        }
+    }
+
+    /// Updates feed state and merges entries. Callers save.
+    @discardableResult
+    private func apply(parsed: ParsedFeed, to feed: Feed, in context: ModelContext) -> Int {
+        if !feed.titleIsCustom, feed.title != parsed.title { feed.title = parsed.title }
+        if feed.lastError != nil { feed.lastError = nil }
         feed.lastSuccessAt = Date()
-        feed.consecutiveFailures = 0
+        if feed.consecutiveFailures != 0 { feed.consecutiveFailures = 0 }
         let added = merge(entries: parsed.entries, into: feed, in: context)
-        try? context.save()
         if added > 0 { Announcer.announce("\(feed.title): \(added) new articles.") }
+        return added
     }
 
     private func recordError(_ error: Error, for feed: Feed, in context: ModelContext) {
         feed.lastError = error.localizedDescription
         feed.lastErrorAt = Date()
         feed.consecutiveFailures += 1
-        try? context.save()
     }
 
     /// Refresh-all fetches and parses up to 8 feeds at a time (desktop
@@ -74,9 +96,16 @@ final class LibraryStore {
     /// on a phone), then merges one at a time on the main actor, since
     /// ModelContext is not thread-safe. Previously this was one feed at
     /// a time, so 698 feeds meant 698 sequential round trips.
+    /// Saves happen every 25 feeds, not after each one: every save
+    /// re-runs each open @Query and re-renders the lists.
     func refreshAll(feeds: [Feed], in context: ModelContext) async {
         var newTotal = 0
-        let jobs: [(Feed, URL)] = feeds.compactMap { feed in
+        if feeds.contains(where: \.isHosted) {
+            newTotal += await syncHosted(in: context)
+        }
+        let localFeeds = feeds.filter { !$0.isHosted }
+        let feedsByID = Dictionary(localFeeds.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let jobs: [(Feed, URL)] = localFeeds.compactMap { feed in
             URL(string: feed.url).map { (feed, $0) }
         }
         await withTaskGroup(of: (String, Result<ParsedFeed, Error>).self) { group in
@@ -84,32 +113,37 @@ final class LibraryStore {
             let window = 8
             func enqueueNext() {
                 guard index < jobs.count else { return }
-                let (feed, url) = jobs[index]
+                // Read the id here: SwiftData models must not be touched
+                // from the child tasks, which run off the main actor.
+                let feedID = jobs[index].0.id
+                let url = jobs[index].1
                 index += 1
                 group.addTask { [session] in
                     do {
-                        return (feed.id, .success(try await Self.fetchParsed(session: session, url: url)))
+                        return (feedID, .success(try await Self.fetchParsed(session: session, url: url)))
                     } catch {
-                        return (feed.id, .failure(error))
+                        return (feedID, .failure(error))
                     }
                 }
             }
             for _ in 0..<min(window, jobs.count) { enqueueNext() }
+            var merged = 0
             for await (feedID, result) in group {
-                if let feed = jobs.first(where: { $0.0.id == feedID })?.0 {
-                    let before = feed.articles.count
+                if let feed = feedsByID[feedID] {
                     switch result {
                     case .success(let parsed):
-                        apply(parsed: parsed, to: feed, in: context)
+                        newTotal += apply(parsed: parsed, to: feed, in: context)
                     case .failure(let error):
                         recordError(error, for: feed, in: context)
                     }
-                    newTotal += max(0, feed.articles.count - before)
+                    merged += 1
+                    if merged % 25 == 0 { try? context.save() }
                 }
                 enqueueNext()
             }
         }
-        for feed in feeds { await autoDownloadPodcasts(feed: feed) }
+        try? context.save()
+        for feed in localFeeds { await autoDownloadPodcasts(feed: feed) }
         Announcer.announce("Refresh complete. \(newTotal) new articles.")
         if newTotal > 0, UserDefaults.standard.bool(forKey: "notificationsEnabled") {
             let content = UNMutableNotificationContent()
@@ -145,7 +179,8 @@ final class LibraryStore {
 
     /// Restores a deleted article from its snapshot and clears the tombstone.
     func restoreDeleted(_ deleted: DeletedArticle, in context: ModelContext) {
-        guard let feed = (try? context.fetch(FetchDescriptor<Feed>()))?.first(where: { $0.id == deleted.feedID }) else { return }
+        let feedID = deleted.feedID
+        guard let feed = (try? context.fetch(FetchDescriptor<Feed>(predicate: #Predicate { $0.id == feedID })))?.first else { return }
         let article = Article(id: deleted.articleID, title: deleted.title ?? "Untitled",
                               url: deleted.url ?? "", content: deleted.content ?? "",
                               summary: deleted.summary, dateRaw: deleted.dateRaw ?? "",
@@ -218,14 +253,20 @@ final class LibraryStore {
             let articleID = "\(feed.id):\(entry.guid)"
             if tombstonedIDs.contains(articleID) || tombstonedIDs.contains(entry.guid) { continue }
             if let existing = existingByID[articleID] {
-                existing.title = entry.title
-                existing.content = entry.contentHTML.isEmpty ? (entry.summaryHTML ?? "") : entry.contentHTML
-                existing.summary = entry.summaryHTML
-                existing.date = entry.date
-                existing.dateRaw = entry.dateRaw
-                existing.author = entry.author
-                existing.mediaURL = entry.mediaURL
-                existing.mediaType = entry.mediaType
+                // Write only fields that changed. Unconditional writes
+                // dirtied every stored article on every refresh, so each
+                // refresh re-saved them all and re-rendered every row.
+                func update<T: Equatable>(_ keyPath: ReferenceWritableKeyPath<Article, T>, _ value: T) {
+                    if existing[keyPath: keyPath] != value { existing[keyPath: keyPath] = value }
+                }
+                update(\.title, entry.title)
+                update(\.content, entry.contentHTML.isEmpty ? (entry.summaryHTML ?? "") : entry.contentHTML)
+                update(\.summary, entry.summaryHTML)
+                update(\.date, entry.date)
+                update(\.dateRaw, entry.dateRaw)
+                update(\.author, entry.author)
+                update(\.mediaURL, entry.mediaURL)
+                update(\.mediaType, entry.mediaType)
             } else {
                 let article = Article(
                     id: articleID, title: entry.title, url: entry.link,
@@ -273,8 +314,12 @@ final class LibraryStore {
     /// Downloads a Podcasting 2.0 chapters document into Chapter rows.
     func loadChapters(articleID: String, chapterURL: String, in context: ModelContext) async {
         let parsed = await PodcastService.fetchChapters(urlString: chapterURL)
+        // Fetch the one article by id. This used to load the whole Article
+        // table once per new episode with a chapters URL.
+        var descriptor = FetchDescriptor<Article>(predicate: #Predicate { $0.id == articleID })
+        descriptor.fetchLimit = 1
         guard !parsed.isEmpty,
-              let article = (try? context.fetch(FetchDescriptor<Article>()))?.first(where: { $0.id == articleID }),
+              let article = (try? context.fetch(descriptor))?.first,
               article.chapters.isEmpty else { return }
         for item in parsed {
             let chapter = Chapter(id: "\(articleID)-ch-\(item.start)", start: item.start,

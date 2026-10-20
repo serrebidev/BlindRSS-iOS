@@ -38,3 +38,17 @@ Remaining cost, accepted: inserting 2,000 articles with full HTML content into S
 ## Battery note
 
 The concurrent refresh window (8) and the Miniflux page cap (2,000 newest) are the two settings that most affect radio time. Both favor finishing quickly and letting the radio sleep over trickling requests indefinitely, which is the right trade on cellular.
+
+## Second pass (0.1.2)
+
+0.1.1 still ran hot on the reference account. The first pass counted network and merge costs but missed per-render SwiftUI costs, which repeat on every model change. During a refresh that is every merged feed.
+
+- Feed list unread counts (Views/FeedListView.swift). The 0.1.1 "single pass" was a computed property, and each feed row read it three times (badge check, badge text, VoiceOver value). Every read walked every feed's articles, so 698 feeds meant about 2,100 full-library passes per render. The Library badges added two more flatMaps of every article. Now one pass per render produces per-feed unread, total unread, favorites, and error counts, passed into the rows. Categories group once with Dictionary(grouping:) instead of filtering all feeds per category.
+- Refresh All with a hosted account (Services/LibraryStore.swift). Miniflux and Google Reader feeds were refreshed by fetching their feed URLs directly: 698 requests and parses, merged under local ids ("miniflux:12:guid") that differ from the sync ids ("miniflux:4567"), so every refresh duplicated the account's articles and grew the library that every list scans. Hosted feeds (Feed.isHosted) now refresh through HostedSync; only local feeds are fetched by URL. Single-feed refresh of a hosted feed also syncs the account.
+- Save frequency. Refresh saved after every feed. Each save re-runs every open @Query and re-renders the lists. Refresh now saves every 25 feeds and once at the end.
+- Unchanged writes. Merge rewrote eight fields on every existing article, and Miniflux sync rewrote read and favorite flags on every entry. Writes now happen only when a value differs, so unchanged articles are not dirtied, saved, or re-rendered.
+- Root view query (Views/ContentView.swift). ContentView held an @Query of every article only to restore the play queue at launch, so any article change re-rendered the whole window. It now fetches just the queued ids once.
+- Article list (Views/ArticleListView.swift). The filtered list was a computed property read five times per render (empty check, list, three rotors), each a full filter and sort. It is now computed once per render, and the redundant sort is gone (the query already sorts by date).
+- Date parsing (Services/FeedParser.swift). parseDate built a new ISO formatter and a new RFC formatter on every call and reconfigured them for each pattern. Formatters are now built once.
+- Chapter loading and restore. loadChapters fetched the entire Article table once per new episode with a chapters URL; restore fetched every feed. Both fetch by id with a predicate.
+- Smaller: reader strips HTML once per render instead of three times; Downloads queries only rows with a downloaded file; the downloads directory is resolved once; refresh child tasks no longer read SwiftData models off the main actor.

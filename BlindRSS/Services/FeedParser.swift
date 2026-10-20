@@ -111,19 +111,34 @@ enum FeedParser {
     static func parseDate(_ raw: String) -> Date? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = iso.date(from: trimmed) { return date }
-        iso.formatOptions = [.withInternetDateTime]
-        if let date = iso.date(from: trimmed) { return date }
-        let rfc = DateFormatter()
-        rfc.locale = Locale(identifier: "en_US_POSIX")
-        for format in ["EEE, dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy HH:mm:ss zzz",
-                       "dd MMM yyyy HH:mm:ss Z", "yyyy-MM-dd HH:mm:ss"] {
-            rfc.dateFormat = format
-            if let date = rfc.date(from: trimmed) { return date }
+        for formatter in isoFormatters {
+            if let date = formatter.date(from: trimmed) { return date }
+        }
+        for formatter in rfcFormatters {
+            if let date = formatter.date(from: trimmed) { return date }
         }
         return nil
+    }
+
+    // Formatters are built once. Creating them per date was the main
+    // parsing cost: every RSS item built and configured up to six.
+    // Both formatter types are thread-safe for parsing once configured.
+    private static let isoFormatters: [ISO8601DateFormatter] = ([
+        [.withInternetDateTime, .withFractionalSeconds], [.withInternetDateTime],
+    ] as [ISO8601DateFormatter.Options]).map { options in
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = options
+        return formatter
+    }
+
+    private static let rfcFormatters: [DateFormatter] = [
+        "EEE, dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy HH:mm:ss zzz",
+        "dd MMM yyyy HH:mm:ss Z", "yyyy-MM-dd HH:mm:ss",
+    ].map { format in
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = format
+        return formatter
     }
 }
 
