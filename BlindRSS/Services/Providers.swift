@@ -233,7 +233,7 @@ final class HostedSync {
     }
 
     /// Adds https:// when the user typed a bare host like rss.example.com.
-    static func normalizedBaseURL(_ raw: String) -> String {
+    nonisolated static func normalizedBaseURL(_ raw: String) -> String {
         var base = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if !base.hasPrefix("http://"), !base.hasPrefix("https://") {
