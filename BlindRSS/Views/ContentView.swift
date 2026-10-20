@@ -38,7 +38,10 @@ struct ContentView: View {
                 .navigationTitle(selectedFeed?.title ?? selectedView.title)
         } detail: {
             if let article = selectedArticle {
+                // New identity per article: on iPad the reader stayed on
+                // screen and kept the previous article's full text.
                 ArticleReaderView(article: article)
+                    .id(article.id)
                     .navigationTitle(article.title)
             } else {
                 ContentUnavailableView("No Article Selected",

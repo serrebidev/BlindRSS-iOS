@@ -183,6 +183,58 @@ final class HTMLTextTests: XCTestCase {
         let long = String(repeating: "word ", count: 100)
         XCTAssertTrue(HTMLText.preview(from: long, maxChars: 20).hasSuffix("…"))
     }
+
+    func testDecodesNumericAndNamedEntitiesOnce() {
+        XCTAssertEqual(HTMLText.decodeEntities("It&#8217;s &#x2014; &rsquo;x&hellip; &amp;lt; &bogus; a & b"),
+                       "It\u{2019}s \u{2014} \u{2019}x\u{2026} &lt; &bogus; a & b")
+    }
+
+    func testArticleBlocksKeepArticleAndDropPageChrome() {
+        let page = """
+        <html><head><title>T</title><script>var x = "<p>nope</p>";</script></head><body>
+        <nav><ul><li><a href=/>Home</a></li><li><a href=/news>News, sport, and weather today</a></li></ul></nav>
+        <header>Site name and a long tagline that is not article text at all</header>
+        <div class="layout"><div class="article-body">
+        <h2>Section heading</h2>
+        <p>First paragraph of the article, long enough to count as real text, with commas, too.
+        <p>Second paragraph, it&#8217;s also long enough to be read as real article text here.</p>
+        <p>Yes.</p>
+        <p>Advertisement</p>
+        <div class="share-tools"><p>Share this article on every social network you can think of today</p></div>
+        <ul><li><p>A list item with a nested paragraph inside it for the reader.</p></li></ul>
+        <blockquote>Hey Jeff,<br><br>Quoted line two.</blockquote>
+        </div>
+        <aside><p>Sidebar paragraph that should never be read out as part of the article body text.</p></aside>
+        </div>
+        <footer><p>Copyright and a very long footer paragraph that should not be included in the text.</p></footer>
+        </body></html>
+        """
+        let blocks = HTMLText.articleBlocks(fromPage: page)
+        XCTAssertEqual(blocks.map(\.text), [
+            "Section heading",
+            "First paragraph of the article, long enough to count as real text, with commas, too.",
+            "Second paragraph, it\u{2019}s also long enough to be read as real article text here.",
+            "Yes.",
+            "A list item with a nested paragraph inside it for the reader.",
+            "Hey Jeff,",
+            "Quoted line two.",
+        ])
+        XCTAssertEqual(blocks.map(\.isHeading), [true, false, false, false, false, false, false])
+    }
+
+    func testArticleBlocksKeepsSiblingContentDivs() {
+        // Ars Technica splits one article across sibling content divs.
+        func half(_ range: ClosedRange<Int>) -> String {
+            range.map { "<p>Paragraph \($0) of real article text, long enough to be scored as text.</p>" }.joined()
+        }
+        let page = "<article><div class=\"post-content\">\(half(1...4))</div><div class=\"post-content\">\(half(5...8))</div></article>"
+        let blocks = HTMLText.articleBlocks(fromPage: page)
+        XCTAssertEqual(blocks.count, 8)
+    }
+
+    func testPlainTextBlocksSplitByLine() {
+        XCTAssertEqual(HTMLText.blocks(fromPlainText: "One\n\nTwo").map(\.text), ["One", "Two"])
+    }
 }
 
 final class OPMLServiceTests: XCTestCase {

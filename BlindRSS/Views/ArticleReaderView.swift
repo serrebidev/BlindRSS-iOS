@@ -10,7 +10,7 @@ import SwiftUI
 struct ArticleReaderView: View {
     @Environment(AudioPlayer.self) private var player
     @Environment(\.openURL) private var openURL
-    @State private var fullText: String?
+    @State private var fullText: [ReaderBlock]?
     @State private var isFetchingFullText = false
     let article: Article
 
@@ -20,7 +20,8 @@ struct ArticleReaderView: View {
         // Strip the HTML once per render. Body text and description
         // chapters each used to strip it, and chapters did so twice.
         let plainContent = HTMLText.plainText(from: article.content)
-        let bodyText = fullText ?? (plainContent.isEmpty ? HTMLText.plainText(from: article.summary) : plainContent)
+        let feedText = plainContent.isEmpty ? HTMLText.plainText(from: article.summary) : plainContent
+        let bodyBlocks = fullText ?? HTMLText.blocks(fromPlainText: feedText)
         let descriptionChapters = YouTubeService.chapters(fromDescription: plainContent)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -63,11 +64,18 @@ struct ArticleReaderView: View {
 
                 HStack(spacing: 12) {
                     Button {
+                        // Read the model here on the main actor; the fetch runs off it.
+                        let articleID = article.id
+                        let url = article.url
                         Task {
                             isFetchingFullText = true
-                            fullText = await FullTextService.fetchFullText(for: article)
+                            do {
+                                fullText = try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText)
+                                Announcer.announce("Full text loaded.")
+                            } catch {
+                                Announcer.announce(error.localizedDescription)
+                            }
                             isFetchingFullText = false
-                            Announcer.announce(fullText != nil ? "Full text loaded." : "Feed text is already the fullest version.")
                         }
                     } label: {
                         Label(isFetchingFullText ? "Fetching" : "Fetch Full Text", systemImage: "doc.text.magnifyingglass")
@@ -107,9 +115,14 @@ struct ArticleReaderView: View {
                     }
                 }
 
-                Text(bodyText)
-                    .font(.body)
-                    .textSelection(.enabled)
+                // One element per paragraph, so VoiceOver can move through a
+                // long article by paragraph and by heading.
+                ForEach(Array(bodyBlocks.enumerated()), id: \.offset) { _, block in
+                    Text(block.text)
+                        .font(block.isHeading ? .headline : .body)
+                        .accessibilityAddTraits(block.isHeading ? .isHeader : [])
+                        .textSelection(.enabled)
+                }
 
                 if let url = URL(string: article.url) {
                     Link("Open original article", destination: url)

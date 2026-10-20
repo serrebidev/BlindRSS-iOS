@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4
+
+- Fix Fetch Full Text. It used to strip the tags from the whole web page, so it read menus, footers, cookie notices, and related links. It never picked out the article. It now finds the article the way BlindRSS for Android does, and keeps only its headings and paragraphs.
+- Miniflux articles get their full text from your Miniflux server first. The server's extractor also works on sites that block apps.
+- Pages are now requested the way Safari requests them. The old app name was blocked by many news sites, and the error page text was shown as the article. When a site refuses, the app now says so, with the HTTP code.
+- Pages that are not in UTF-8 now load. Before, they failed with a message saying the feed text was already complete.
+- The reader now shows each paragraph and heading as its own VoiceOver item. Swipe moves by paragraph, and the Headings rotor works in articles. Before, the whole article was one item.
+- Web punctuation like &#8217; and &rsquo; is now shown as the real character, not read out as code.
+- On iPad, choosing another article no longer keeps the previous article's full text.
+
 ## 0.1.3
 
 - Fix feeds, Unread, All Articles, and the other library views not opening on iPhone. The sidebar rows were buttons that changed state, but on iPhone the split view only moves to the next screen when its list selection changes, so nothing opened. All Articles was already the default, so tapping it changed nothing at all. Rows now use list selection.
