@@ -12,17 +12,30 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AudioPlayer.self) private var player
     @Environment(\.modelContext) private var context
-    @State private var selectedFeed: Feed?
-    @State private var selectedView: LibrarySelection = .all
+    /// Sidebar and article list selections. On iPhone the split view
+    /// collapses to a stack and only pushes the next column when a
+    /// List(selection:) changes; buttons that set state push nothing,
+    /// which is why feeds and views could not be opened before 0.1.3.
+    @State private var sidebarSelection: SidebarItem?
     @State private var selectedArticle: Article?
+
+    private var selectedView: LibrarySelection {
+        if case .library(let view)? = sidebarSelection { return view }
+        return .all
+    }
+
+    private var selectedFeed: Feed? {
+        if case .feed(let feed)? = sidebarSelection { return feed }
+        return nil
+    }
 
     var body: some View {
         NavigationSplitView {
-            FeedListView(selection: $selectedView, selectedFeed: $selectedFeed)
+            FeedListView(selection: $sidebarSelection)
                 .navigationTitle("Feeds")
         } content: {
             ArticleListView(selection: selectedView, feed: selectedFeed, selectedArticle: $selectedArticle)
-                .navigationTitle(selectedView.title)
+                .navigationTitle(selectedFeed?.title ?? selectedView.title)
         } detail: {
             if let article = selectedArticle {
                 ArticleReaderView(article: article)
@@ -45,6 +58,9 @@ struct ContentView: View {
             player.togglePlayPause()
         }
         .onAppear { wirePlaybackState() }
+        // A new feed or view starts with no article open; a stale one
+        // would jump straight to the old reader on iPhone.
+        .onChange(of: sidebarSelection) { selectedArticle = nil }
     }
 
     /// Connects the player to SwiftData: resume positions, progress saves,
@@ -89,6 +105,12 @@ struct ContentView: View {
             player.restoreQueue(articles: queued)
         }
     }
+}
+
+/// One sidebar row: a fixed library view or a feed.
+enum SidebarItem: Hashable {
+    case library(LibrarySelection)
+    case feed(Feed)
 }
 
 /// The desktop's fixed views: All / Unread / Read / Favorites, plus Errors.

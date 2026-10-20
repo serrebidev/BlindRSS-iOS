@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Fix feeds, Unread, All Articles, and the other library views not opening on iPhone. The sidebar rows were buttons that changed state, but on iPhone the split view only moves to the next screen when its list selection changes, so nothing opened. All Articles was already the default, so tapping it changed nothing at all. Rows now use list selection.
+- Fix articles not opening in the reader, for the same reason. Opening an article still marks it read, now without a spoken "Marked as read" each time.
+- Choosing a different feed or view now starts with no article open, instead of jumping back to the previous article.
+
 ## 0.1.2
 
 - Fix high CPU use that 0.1.1 did not solve. The feed list rebuilt unread counts for the whole library about three times per feed on every update, so a 698-feed account did thousands of full-library passes each time anything changed. Counts are now built once per update.

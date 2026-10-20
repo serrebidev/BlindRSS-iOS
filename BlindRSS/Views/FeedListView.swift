@@ -19,8 +19,7 @@ struct FeedListView: View {
     @State private var isRefreshing = false
     @AccessibilityFocusState private var addButtonFocused: Bool
 
-    @Binding var selection: LibrarySelection
-    @Binding var selectedFeed: Feed?
+    @Binding var selection: SidebarItem?
 
     /// Unread and favorite counts for the whole library in one pass.
     /// Body computes this once per render and hands it to every row; it
@@ -51,18 +50,16 @@ struct FeedListView: View {
     var body: some View {
         let counts = libraryCounts()
         let feedsByCategory = Dictionary(grouping: feeds, by: \.category)
-        List {
+        // Rows are tagged, not buttons: List selection is what makes the
+        // split view open the article list on iPhone.
+        List(selection: $selection) {
             Section {
                 ForEach(LibrarySelection.allCases) { view in
-                    Button {
-                        selection = view
-                        selectedFeed = nil
-                    } label: {
-                        Label(view.title, systemImage: view.systemImage)
-                    }
-                    .accessibilityLabel(view.title)
-                    .accessibilityValue(badgeValue(for: view, counts: counts))
-                    .accessibilityAddTraits(selection == view && selectedFeed == nil ? [.isSelected] : [])
+                    Label(view.title, systemImage: view.systemImage)
+                        .tag(SidebarItem.library(view))
+                        .accessibilityLabel(view.title)
+                        .accessibilityValue(badgeValue(for: view, counts: counts))
+                        .accessibilityAddTraits(.isButton)
                 }
             } header: {
                 Text("Library")
@@ -145,35 +142,31 @@ struct FeedListView: View {
 
     @ViewBuilder
     private func feedRow(_ feed: Feed, unread: Int) -> some View {
-        Button {
-            selectedFeed = feed
-            selection = .all
-        } label: {
-            HStack {
-                Text(feed.title)
-                Spacer()
-                if unread > 0 {
-                    Text("\(unread)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if feed.lastError != nil {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .accessibilityHidden(true)
-                }
+        HStack {
+            Text(feed.title)
+            Spacer()
+            if unread > 0 {
+                Text("\(unread)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if feed.lastError != nil {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
             }
         }
+        .contentShape(Rectangle())
+        .tag(SidebarItem.feed(feed))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(feed.title)
         .accessibilityValue(feedValue(feed, unread: unread))
         .accessibilityHint("Shows feed actions.")
-        .accessibilityAddTraits(selectedFeed?.id == feed.id ? [.isSelected] : [])
+        .accessibilityAddTraits(.isButton)
         // Touch swipe actions.
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
-                store.removeFeed(feed, in: context)
-                if selectedFeed?.id == feed.id { selectedFeed = nil }
+                deleteFeed(feed)
             } label: { Label("Delete", systemImage: "trash") }
             Button {
                 markAllRead(feed)
@@ -187,15 +180,19 @@ struct FeedListView: View {
         }
         // VoiceOver custom actions: the identical set, with icons for the
         // Switch Control and Voice Control actions menus.
-        .accessibilityAction { selectedFeed = feed; selection = .all } label: { Label("Open", systemImage: "doc.text") }
+        .accessibilityAction { selection = .feed(feed) } label: { Label("Open", systemImage: "doc.text") }
         .accessibilityAction { Task { await store.refresh(feed: feed, in: context) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
         .accessibilityAction { markAllRead(feed) } label: { Label("Mark All Read", systemImage: "envelope.open") }
         .accessibilityAction { editingFeed = feed } label: { Label("Edit Feed", systemImage: "pencil") }
         .accessibilityAction { archiveFeed = feed } label: { Label("Podcast Archive", systemImage: "archivebox") }
-        .accessibilityAction {
-            store.removeFeed(feed, in: context)
-            if selectedFeed?.id == feed.id { selectedFeed = nil }
-        } label: { Label("Delete", systemImage: "trash") }
+        .accessibilityAction { deleteFeed(feed) } label: { Label("Delete", systemImage: "trash") }
+    }
+
+    /// Clears the selection first so the article list never shows a
+    /// deleted feed.
+    private func deleteFeed(_ feed: Feed) {
+        if selection == .feed(feed) { selection = nil }
+        store.removeFeed(feed, in: context)
     }
 
     private func feedValue(_ feed: Feed, unread: Int) -> String {

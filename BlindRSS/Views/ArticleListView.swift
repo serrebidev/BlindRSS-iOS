@@ -66,12 +66,20 @@ struct ArticleListView: View {
                 ContentUnavailableView("No Articles", systemImage: "doc.text",
                                        description: Text("Pull to refresh, or choose another view."))
             } else {
+                // Rows are tagged, not buttons, so the list selection
+                // pushes the reader on iPhone.
                 List(articles, selection: $selectedArticle) { article in
-                    ArticleRow(article: article, isSelected: selectedArticle?.id == article.id) {
+                    ArticleRow(article: article) {
                         selectedArticle = article
-                        store.setRead(article, read: true, in: context)
                     }
                     .tag(article)
+                }
+                .onChange(of: selectedArticle) { _, article in
+                    // Opening marks read quietly: the reader appearing is the feedback.
+                    guard let article, !article.isRead else { return }
+                    article.isRead = true
+                    article.openedAt = Date()
+                    try? context.save()
                 }
                 // Custom Rotors: two-finger rotate, then swipe to jump
                 // between matching articles (technique: Rotor).
@@ -132,43 +140,42 @@ private struct ArticleRow: View {
     @State private var showingShare = false
 
     let article: Article
-    let isSelected: Bool
     let onOpen: () -> Void
 
     var body: some View {
-        Button(action: onOpen) {
-            HStack(spacing: 12) {
-                Image(systemName: statusImage)
-                    .foregroundStyle(article.isRead ? Color.secondary : Color.accentColor)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(article.title)
-                        .font(article.isRead ? .body : .body.bold())
-                        .foregroundStyle(.primary)
-                    HStack(spacing: 8) {
-                        if let feedTitle = article.feed?.title {
-                            Text(feedTitle).font(.caption).foregroundStyle(.secondary)
-                        }
-                        if let date = article.date {
-                            Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
-                        }
-                        if article.isFavorite {
-                            Image(systemName: "star.fill").foregroundStyle(.yellow).accessibilityHidden(true)
-                        }
-                        if article.hasMedia {
-                            Image(systemName: "play.circle").foregroundStyle(.secondary).accessibilityHidden(true)
-                        }
+        HStack(spacing: 12) {
+            Image(systemName: statusImage)
+                .foregroundStyle(article.isRead ? Color.secondary : Color.accentColor)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(article.title)
+                    .font(article.isRead ? .body : .body.bold())
+                    .foregroundStyle(.primary)
+                HStack(spacing: 8) {
+                    if let feedTitle = article.feed?.title {
+                        Text(feedTitle).font(.caption).foregroundStyle(.secondary)
+                    }
+                    if let date = article.date {
+                        Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
+                    }
+                    if article.isFavorite {
+                        Image(systemName: "star.fill").foregroundStyle(.yellow).accessibilityHidden(true)
+                    }
+                    if article.hasMedia {
+                        Image(systemName: "play.circle").foregroundStyle(.secondary).accessibilityHidden(true)
                     }
                 }
             }
+            Spacer(minLength: 0)
         }
         .frame(minHeight: 44)
+        .contentShape(Rectangle())
         // One VoiceOver element per row, spoken once in a fixed order.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(article.title)
         .accessibilityValue(accessibilityValue)
         .accessibilityHint("Shows article actions.")
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityAddTraits(.isButton)
         // Touch swipe actions (sighted and low-vision path).
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
