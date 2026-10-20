@@ -61,6 +61,8 @@ final class Article {
     var isFavorite: Bool
     var mediaURL: String?
     var mediaType: String?
+    /// Podcasting 2.0 chapters document URL from the feed, if any.
+    var chapterURL: String?
     /// Local filename in Documents/Downloads once the media is downloaded.
     var localFileName: String?
     var openedAt: Date?

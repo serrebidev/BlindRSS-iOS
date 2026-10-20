@@ -75,3 +75,11 @@ Article actions also include Copy Link and Download Media. Downloaded episodes p
 Settings also contains: Online Account (Miniflux, Inoreader, The Old Reader, BazQux sync), Smart Folders, Filter Rules, and Deleted Articles, where Restore and Delete Permanently are row actions. Feed rows include Edit Feed for renaming and recategorizing.
 
 In the reader, Fetch Full Text recovers complete articles, and YouTube articles show an embedded player with chapter listings from the description.
+
+## Podcast playback
+
+Episodes resume where you stopped, rewound ten seconds. Finished episodes are marked read, and the next queued episode starts on its own. The play queue survives restarting the app; Move Up, Move Down, Remove, Play Now, and Clear Queue are queue actions.
+
+Lock-screen and headphone controls play, pause, skip, and seek without opening the app. In the player: Volume is a slider, Speed Presets sets speed directly, Sleep Timer stops playback after 15, 30, or 60 minutes or at the end of the episode, and chapters seek when focused.
+
+Find a Podcast in Add Feed searches Apple Podcasts; subscribing is one tap on a result. A feed's Podcast Archive action recovers older episodes from the Wayback Machine and downloads them in batches. Auto-download in Settings fetches new episodes after refresh, up to the limit you set.

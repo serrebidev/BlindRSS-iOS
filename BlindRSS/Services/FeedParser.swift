@@ -6,6 +6,12 @@ import Foundation
 
 /// One parsed entry, format-neutral. Mirrors the fields the desktop local
 /// provider (providers/local.py) extracts from RSS, Atom, and JSON Feed.
+struct ParsedChapter: Equatable {
+    var start: Double
+    var title: String
+    var href: String?
+}
+
 struct ParsedEntry: Equatable {
     var guid: String
     var title: String
@@ -17,6 +23,10 @@ struct ParsedEntry: Equatable {
     var date: Date?
     var mediaURL: String?
     var mediaType: String?
+    /// Podcasting 2.0 <podcast:chapters url="..."> document for this episode.
+    var chapterURL: String?
+    /// Inline chapters (psc:chapter / podcast:chapter start/title).
+    var inlineChapters: [ParsedChapter] = []
 }
 
 struct ParsedFeed: Equatable {
@@ -88,6 +98,15 @@ enum FeedParser {
                           language: decoded.language, entries: entries)
     }
 
+    /// Parses "90", "1:30", or "1:02:30" chapter timestamps to seconds.
+    static func parseTimestamp(_ raw: String) -> Double? {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        if let plain = Double(trimmed) { return plain }
+        let bits = trimmed.split(separator: ":").compactMap { Double($0) }
+        guard bits.count == 2 || bits.count == 3 else { return nil }
+        return bits.reduce(0) { $0 * 60 + $1 }
+    }
+
     /// RFC 822 / RFC 3339 date parsing, matching desktop parse_datetime_utc.
     static func parseDate(_ raw: String) -> Date? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -147,6 +166,18 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
             entryLinkRel = attributeDict["rel"]
             entryLinkType = attributeDict["type"]
             entryLinkHref = attributeDict["href"]
+        }
+        if inEntry && name == "chapters" {
+            entry.chapterURL = attributeDict["url"]
+        }
+        if inEntry && name == "chapter" {
+            let startRaw = attributeDict["start"] ?? attributeDict["starttime"] ?? attributeDict["start_time"] ?? "0"
+            if let start = FeedParser.parseTimestamp(startRaw) {
+                entry.inlineChapters.append(ParsedChapter(
+                    start: start,
+                    title: attributeDict["title"] ?? "Chapter",
+                    href: attributeDict["href"] ?? attributeDict["url"] ?? attributeDict["link"]))
+            }
         }
         if inEntry && (name == "enclosure" || name == "link") {
             // RSS enclosure or Atom enclosure link: podcast/video media.

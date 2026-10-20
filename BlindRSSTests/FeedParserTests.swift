@@ -62,6 +62,56 @@ final class FeedParserTests: XCTestCase {
     }
 }
 
+final class PodcastServiceTests: XCTestCase {
+    func testChaptersJSONParsesAndSorts() throws {
+        let json = #"{"version":"1.2.0","chapters":[{"startTime":120,"title":"Second"},{"startTime":0,"title":"First","url":"https://example.com"}]}"#
+        let chapters = try PodcastService.parseChaptersJSON(data: Data(json.utf8))
+        XCTAssertEqual(chapters.map(\.title), ["First", "Second"])
+        XCTAssertEqual(chapters[0].href, "https://example.com")
+    }
+
+    func testResumePositionBacksUpTenSeconds() {
+        XCTAssertEqual(PodcastService.resumePosition(saved: 600, duration: 3600), 590)
+        XCTAssertEqual(PodcastService.resumePosition(saved: 15, duration: 3600), 5)
+    }
+
+    func testResumePositionRestartsNearEnd() {
+        // Within the last 60 seconds counts as finished (desktop threshold).
+        XCTAssertEqual(PodcastService.resumePosition(saved: 3590, duration: 3600), 0)
+        XCTAssertEqual(PodcastService.resumePosition(saved: nil, duration: 3600), 0)
+    }
+
+    func testSearchJSONFiltersMissingFeedURLs() throws {
+        let json = #"{"results":[{"collectionId":1,"collectionName":"Show","feedUrl":"https://example.com/feed"},{"collectionId":2,"collectionName":"NoFeed"}]}"#
+        let results = try PodcastService.parseSearchJSON(data: Data(json.utf8))
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].title, "Show")
+    }
+
+    func testInlinePodcastChaptersFromFeed() throws {
+        let xml = """
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0"><channel>
+        <title>Show</title>
+        <item><title>Ep</title><guid>e1</guid>
+        <enclosure url="https://example.com/e.mp3" type="audio/mpeg"/>
+        <podcast:chapters url="https://example.com/chapters.json" type="application/json+chapters"/>
+        <podcast:chapter start="0" title="Intro"/><podcast:chapter start="1:30" title="Main"/>
+        </item></channel></rss>
+        """
+        let feed = try FeedParser.parse(data: Data(xml.utf8), sourceURL: URL(string: "https://example.com/feed")!)
+        XCTAssertEqual(feed.entries[0].chapterURL, "https://example.com/chapters.json")
+        XCTAssertEqual(feed.entries[0].inlineChapters.count, 2)
+        XCTAssertEqual(feed.entries[0].inlineChapters[1].start, 90)
+    }
+
+    func testTimestampParsing() {
+        XCTAssertEqual(FeedParser.parseTimestamp("90"), 90)
+        XCTAssertEqual(FeedParser.parseTimestamp("1:30"), 90)
+        XCTAssertEqual(FeedParser.parseTimestamp("1:02:30"), 3750)
+        XCTAssertNil(FeedParser.parseTimestamp("soon"))
+    }
+}
+
 final class YouTubeServiceTests: XCTestCase {
     func testVideoIDFromWatchURL() {
         XCTAssertEqual(YouTubeService.videoID(from: "https://www.youtube.com/watch?v=abc123XYZ"), "abc123XYZ")

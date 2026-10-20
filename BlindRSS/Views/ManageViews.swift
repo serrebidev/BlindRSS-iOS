@@ -159,6 +159,109 @@ struct FilterRulesView: View {
     }
 }
 
+/// Find a Podcast (desktop Finding Podcasts): Apple Podcasts search.
+struct PodcastSearchView: View {
+    @Environment(\.modelContext) private var context
+    @State private var store = LibraryStore()
+    @State private var query = ""
+    @State private var results: [PodcastService.SearchResult] = []
+    @State private var isSearching = false
+
+    var body: some View {
+        List {
+            ForEach(results) { result in
+                Button {
+                    Task {
+                        if let feedURL = result.feedUrl {
+                            _ = try? await store.addFeed(urlString: feedURL, in: context)
+                        }
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(result.title)
+                        Text(result.artistName ?? "").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(result.title)
+                .accessibilityValue(result.artistName ?? "")
+                .accessibilityHint("Subscribes to this podcast.")
+            }
+        }
+        .searchable(text: $query, prompt: "Search podcasts")
+        .onSubmit(of: .search) {
+            Task {
+                isSearching = true
+                results = (try? await PodcastService.searchPodcasts(term: query)) ?? []
+                isSearching = false
+                Announcer.announce("\(results.count) podcasts found.")
+            }
+        }
+        .overlay { if isSearching { ProgressView("Searching").accessibilityLabel("Searching") } }
+        .navigationTitle("Find a Podcast")
+    }
+}
+
+/// Podcast Archive (desktop Podcast Archive): back catalogue from the
+/// Wayback Machine, with batch download.
+struct PodcastArchiveView: View {
+    @Environment(\.modelContext) private var context
+    @State private var store = LibraryStore()
+    @State private var filter = ""
+    @Bindable var feed: Feed
+
+    private var episodes: [Article] {
+        feed.articles.filter { $0.hasMedia }
+            .filter { filter.isEmpty || $0.title.localizedCaseInsensitiveContains(filter) }
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Button("Rescan Archive") {
+                    Task { await store.recoverArchive(feed: feed, in: context) }
+                }
+                .accessibilityHint("Recovers older episodes from the Wayback Machine.")
+                Button("Download All") {
+                    Task {
+                        for episode in episodes where episode.localFileName == nil {
+                            try? await DownloadService.download(article: episode)
+                        }
+                        Announcer.announce("Batch download finished.")
+                    }
+                }
+                .accessibilityHint("Downloads every episode in this list.")
+            }
+            Section {
+                ForEach(episodes) { episode in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(episode.title)
+                            if let date = episode.date {
+                                Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        if episode.localFileName != nil {
+                            Image(systemName: "arrow.down.circle.fill").accessibilityHidden(true)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(episode.title)
+                    .accessibilityValue(episode.localFileName != nil ? "downloaded" : "not downloaded")
+                    .accessibilityHint("Shows episode actions.")
+                    .accessibilityAction {
+                        Task { try? await DownloadService.download(article: episode) }
+                    } label: { Label("Download", systemImage: "arrow.down.circle") }
+                }
+            } header: { Text("Episodes").accessibilityAddTraits(.isHeader) }
+        }
+        .searchable(text: $filter, prompt: "Filter episodes")
+        .navigationTitle("Podcast Archive")
+    }
+}
+
 /// Hosted provider account (desktop Online Accounts and Providers).
 struct ProviderSettingsView: View {
     @Environment(\.modelContext) private var context

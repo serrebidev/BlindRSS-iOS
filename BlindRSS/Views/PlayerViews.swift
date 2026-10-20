@@ -64,6 +64,7 @@ struct PlayerView: View {
     @Environment(AudioPlayer.self) private var player
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("seekInterval") private var seekInterval = 30.0
 
     var body: some View {
         NavigationStack {
@@ -92,18 +93,18 @@ struct PlayerView: View {
                     .accessibilityValue(player.formattedPosition)
                     .accessibilityAdjustableAction { direction in
                         switch direction {
-                        case .increment: player.seek(by: 30)
-                        case .decrement: player.seek(by: -30)
+                        case .increment: player.seek(by: seekInterval)
+                        case .decrement: player.seek(by: -seekInterval)
                         @unknown default: break
                         }
                     }
-                    .accessibilityHint("Adjusts playback position by 30 seconds.")
+                    .accessibilityHint("Adjusts playback position by \(Int(seekInterval)) seconds.")
 
                     HStack(spacing: 24) {
-                        Button { player.seek(by: -30) } label: {
+                        Button { player.seek(by: -seekInterval) } label: {
                             Image(systemName: "gobackward.30").frame(minWidth: 44, minHeight: 44)
                         }
-                        .accessibilityLabel("Back 30 seconds")
+                        .accessibilityLabel("Back \(Int(seekInterval)) seconds")
 
                         Button { player.togglePlayPause() } label: {
                             Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
@@ -112,11 +113,47 @@ struct PlayerView: View {
                         }
                         .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
 
-                        Button { player.seek(by: 30) } label: {
+                        Button { player.seek(by: seekInterval) } label: {
                             Image(systemName: "goforward.30").frame(minWidth: 44, minHeight: 44)
                         }
-                        .accessibilityLabel("Forward 30 seconds")
+                        .accessibilityLabel("Forward \(Int(seekInterval)) seconds")
                     }
+
+                    // Volume (desktop volume slider, Ctrl+Up / Ctrl+Down).
+                    VStack(alignment: .leading) {
+                        Text("Volume \(Int(player.volume * 100)) percent")
+                        Slider(value: Binding(get: { player.volume }, set: { player.volume = $0 }), in: 0...1)
+                            .accessibilityLabel("Volume")
+                            .accessibilityValue("\(Int(player.volume * 100)) percent")
+                    }
+                    .accessibilityElement(children: .combine)
+
+                    // Speed presets (desktop Playback Speed submenu steps).
+                    Menu {
+                        ForEach(AudioPlayer.speedSteps, id: \.self) { step in
+                            Button("\(step.formatted(.number.precision(.fractionLength(0...2))))×") {
+                                player.setRate(step)
+                            }
+                        }
+                    } label: {
+                        Label("Speed Presets", systemImage: "speedometer")
+                    }
+                    .accessibilityHint("Sets playback speed directly.")
+
+                    // Sleep timer.
+                    Menu {
+                        Button("Off") { player.sleepTimerSeconds = nil }
+                        Button("15 minutes") { player.sleepTimerSeconds = 900 }
+                        Button("30 minutes") { player.sleepTimerSeconds = 1800 }
+                        Button("60 minutes") { player.sleepTimerSeconds = 3600 }
+                        Button("End of episode") { player.sleepTimerSeconds = max(1, player.duration - player.currentTime) }
+                    } label: {
+                        Label("Sleep Timer", systemImage: "moon.zzz")
+                    }
+                    .accessibilityHint("Stops playback after the chosen time.")
+
+                    AirPlayRouteView().frame(width: 44, height: 44)
+                        .accessibilityLabel("AirPlay and output devices")
 
                     // Adjustable speed: VoiceOver swipe up/down changes rate.
                     Text("Speed \(player.formattedRate)")
@@ -166,11 +203,21 @@ struct PlayerView: View {
                             .accessibilityAction { player.play(article: queued) } label: {
                                 Label("Play Now", systemImage: "play.fill")
                             }
+                            .accessibilityAction { player.moveInQueue(queued, up: true) } label: {
+                                Label("Move Up", systemImage: "arrow.up")
+                            }
+                            .accessibilityAction { player.moveInQueue(queued, up: false) } label: {
+                                Label("Move Down", systemImage: "arrow.down")
+                            }
                         }
                         Button { player.playNextInQueue() } label: {
                             Label("Play Next in Queue", systemImage: "forward.fill")
                         }
                         .accessibilityHint("Stops the current item and plays the next queued item.")
+                        Button(role: .destructive) { player.clearQueue() } label: {
+                            Label("Clear Queue", systemImage: "trash")
+                        }
+                        .accessibilityHint("Removes every item from the play queue.")
                     }
                 }
                 .padding()

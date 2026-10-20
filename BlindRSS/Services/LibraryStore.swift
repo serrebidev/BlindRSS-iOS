@@ -52,6 +52,7 @@ final class LibraryStore {
             let added = merge(entries: parsed.entries, into: feed, in: context)
             try context.save()
             if added > 0 { Announcer.announce("\(feed.title): \(added) new articles.") }
+            await autoDownloadPodcasts(feed: feed)
         } catch {
             feed.lastError = error.localizedDescription
             feed.lastErrorAt = Date()
@@ -174,13 +175,73 @@ final class LibraryStore {
                     summary: entry.summaryHTML, date: entry.date, dateRaw: entry.dateRaw,
                     author: entry.author, mediaURL: entry.mediaURL,
                     mediaType: entry.mediaType, feed: feed)
+                article.chapterURL = entry.chapterURL
+                for parsed in entry.inlineChapters {
+                    let chapter = Chapter(id: "\(articleID)-ch-\(parsed.start)", start: parsed.start,
+                                          title: parsed.title, href: parsed.href, article: article)
+                    article.chapters.append(chapter)
+                    context.insert(chapter)
+                }
                 feed.articles.append(article)
                 context.insert(article)
                 added += 1
                 applyFilterRules(to: article, in: context)
+                if let chapterURL = entry.chapterURL {
+                    Task { await self.loadChapters(articleID: articleID, chapterURL: chapterURL, in: context) }
+                }
             }
         }
         return added
+    }
+
+    /// Desktop auto-download: after refresh, download newest episodes up
+    /// to the configured limit (max_downloads, default 32).
+    private func autoDownloadPodcasts(feed: Feed) async {
+        guard UserDefaults.standard.bool(forKey: "autoDownloadPodcasts") else { return }
+        let limit = max(1, UserDefaults.standard.integer(forKey: "maxDownloads") == 0 ? 32 : UserDefaults.standard.integer(forKey: "maxDownloads"))
+        let pending = feed.articles
+            .filter { $0.hasMedia && $0.localFileName == nil }
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+            .prefix(limit)
+        for article in pending {
+            try? await DownloadService.download(article: article)
+        }
+        if !pending.isEmpty {
+            Announcer.announce("Auto-downloaded \(pending.count) episodes from \(feed.title).")
+        }
+    }
+
+    /// Downloads a Podcasting 2.0 chapters document into Chapter rows.
+    func loadChapters(articleID: String, chapterURL: String, in context: ModelContext) async {
+        let parsed = await PodcastService.fetchChapters(urlString: chapterURL)
+        guard !parsed.isEmpty,
+              let article = (try? context.fetch(FetchDescriptor<Article>()))?.first(where: { $0.id == articleID }),
+              article.chapters.isEmpty else { return }
+        for item in parsed {
+            let chapter = Chapter(id: "\(articleID)-ch-\(item.start)", start: item.start,
+                                  title: item.title, href: item.href, article: article)
+            article.chapters.append(chapter)
+            context.insert(chapter)
+        }
+        try? context.save()
+    }
+
+    /// Wayback Podcast Archive: merges episodes from the oldest feed
+    /// snapshot so back catalogues appear beside current episodes.
+    func recoverArchive(feed: Feed, in context: ModelContext) async {
+        guard let snapshot = await PodcastService.waybackSnapshotURL(forFeed: feed.url) else {
+            Announcer.announce("No archived snapshot found for \(feed.title).")
+            return
+        }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: snapshot)
+            let parsed = try FeedParser.parse(data: data, sourceURL: URL(string: feed.url) ?? snapshot)
+            let added = merge(entries: parsed.entries, into: feed, in: context)
+            try context.save()
+            Announcer.announce("Archive recovery for \(feed.title) added \(added) episodes.")
+        } catch {
+            Announcer.announce("Archive recovery failed for \(feed.title).")
+        }
     }
 
     /// Desktop Filter Rules: mark read, favorite, or delete on arrival.

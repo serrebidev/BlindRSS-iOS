@@ -50,6 +50,14 @@ struct AddFeedView: View {
             }
             .navigationTitle("Add Feed")
             .toolbar {
+                ToolbarItem(placement: .secondaryAction) {
+                    NavigationLink { PodcastSearchView() } label: {
+                        Label("Find a Podcast", systemImage: "magnifyingglass")
+                    }
+                    .accessibilityHint("Searches Apple Podcasts.")
+                }
+            }
+            .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
@@ -97,6 +105,8 @@ struct AddFeedView: View {
 struct SettingsView: View {
     @AppStorage("refreshOnStartup") private var refreshOnStartup = true
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    @AppStorage("autoDownloadPodcasts") private var autoDownloadPodcasts = false
+    @AppStorage("maxDownloads") private var maxDownloads = 32
     @AppStorage("playbackSpeed") private var playbackSpeed = 1.0
     @AppStorage("seekInterval") private var seekInterval = 30.0
 
@@ -114,6 +124,11 @@ struct SettingsView: View {
                         .accessibilityHint("Fetches new articles when the app opens.")
                     Toggle("Resume playback", isOn: .constant(true))
                         .accessibilityHint("Continues episodes where you left off.")
+                    Toggle("Auto-download podcasts", isOn: $autoDownloadPodcasts)
+                        .accessibilityHint("Downloads new episodes after each refresh.")
+                    Stepper("Max auto-downloads: \(maxDownloads)", value: $maxDownloads, in: 1...100)
+                        .accessibilityLabel("Maximum auto-downloads")
+                        .accessibilityValue("\(maxDownloads)")
                 } header: {
                     Text("General")
                         .accessibilityAddTraits(.isHeader)

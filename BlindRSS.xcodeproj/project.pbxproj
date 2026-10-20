@@ -18,6 +18,7 @@
 		75CE24C7EAD0379575D699EB /* Providers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6BE85A6911C26DA1AD6C0B7 /* Providers.swift */; };
 		A41D5FF71DC717204E49B520 /* YouTube.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C31FB855687D1E51424EE8 /* YouTube.swift */; };
 		3E822A0C67CF70D2C4400BED /* EnginePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5FF1069F4650FEF6E94591 /* EnginePlayer.swift */; };
+		9546D6C84357A0C9C9E7155E /* PodcastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009AE3267FCF66033C7E7029 /* PodcastService.swift */; };
 		8FCB3754AA66FF25492BC151 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C3A3EF47BB840877F867A4 /* ContentView.swift */; };
 		F1BE8C4E38AAAAFB6A335445 /* FeedListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D714DDA2475648C813BA919C /* FeedListView.swift */; };
 		18A43BCE391A28203717AF57 /* ArticleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012FA52CF629695B10310024 /* ArticleListView.swift */; };
@@ -32,6 +33,7 @@
 		C640662D44F9DEDD872CE698 /* OPMLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C212F7FBC2E13C73CEFD9C /* OPMLService.swift */; };
 		91E41F310F921FE3BD87D2CD /* YouTube.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0868126341D980E55EEFF387 /* YouTube.swift */; };
 		76273B1DC3DC2B1D4D7631E0 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845179F1A0551FC90514DF77 /* Models.swift */; };
+		232FAFD90932477BAA8AE9B7 /* PodcastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4390ABFD4FAAF2AF829B3448 /* PodcastService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +59,7 @@
 		D6BE85A6911C26DA1AD6C0B7 /* Providers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Providers.swift; sourceTree = "<group>"; };
 		B6C31FB855687D1E51424EE8 /* YouTube.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTube.swift; sourceTree = "<group>"; };
 		6C5FF1069F4650FEF6E94591 /* EnginePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnginePlayer.swift; sourceTree = "<group>"; };
+		009AE3267FCF66033C7E7029 /* PodcastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastService.swift; sourceTree = "<group>"; };
 		B4C3A3EF47BB840877F867A4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D714DDA2475648C813BA919C /* FeedListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedListView.swift; sourceTree = "<group>"; };
 		012FA52CF629695B10310024 /* ArticleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleListView.swift; sourceTree = "<group>"; };
@@ -73,6 +76,7 @@
 		E9C212F7FBC2E13C73CEFD9C /* OPMLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/OPMLService.swift"; sourceTree = "<group>"; };
 		0868126341D980E55EEFF387 /* YouTube.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/YouTube.swift"; sourceTree = "<group>"; };
 		845179F1A0551FC90514DF77 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Models/Models.swift"; sourceTree = "<group>"; };
+		4390ABFD4FAAF2AF829B3448 /* PodcastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/PodcastService.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +139,7 @@
 				D6BE85A6911C26DA1AD6C0B7 /* Providers.swift */,
 				B6C31FB855687D1E51424EE8 /* YouTube.swift */,
 				6C5FF1069F4650FEF6E94591 /* EnginePlayer.swift */,
+				009AE3267FCF66033C7E7029 /* PodcastService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -162,6 +167,7 @@
 				E9C212F7FBC2E13C73CEFD9C /* OPMLService.swift */,
 				0868126341D980E55EEFF387 /* YouTube.swift */,
 				845179F1A0551FC90514DF77 /* Models.swift */,
+				4390ABFD4FAAF2AF829B3448 /* PodcastService.swift */,
 			);
 			path = BlindRSSTests;
 			sourceTree = "<group>";
@@ -286,6 +292,7 @@
 				75CE24C7EAD0379575D699EB /* Providers.swift in Sources */,
 				A41D5FF71DC717204E49B520 /* YouTube.swift in Sources */,
 				3E822A0C67CF70D2C4400BED /* EnginePlayer.swift in Sources */,
+				9546D6C84357A0C9C9E7155E /* PodcastService.swift in Sources */,
 				8FCB3754AA66FF25492BC151 /* ContentView.swift in Sources */,
 				F1BE8C4E38AAAAFB6A335445 /* FeedListView.swift in Sources */,
 				18A43BCE391A28203717AF57 /* ArticleListView.swift in Sources */,
@@ -306,6 +313,7 @@
 				C640662D44F9DEDD872CE698 /* OPMLService.swift in Sources */,
 				91E41F310F921FE3BD87D2CD /* YouTube.swift in Sources */,
 				76273B1DC3DC2B1D4D7631E0 /* Models.swift in Sources */,
+				232FAFD90932477BAA8AE9B7 /* PodcastService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -347,6 +355,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -370,6 +379,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
