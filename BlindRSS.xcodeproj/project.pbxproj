@@ -157,6 +157,11 @@
 			isa = PBXGroup;
 			children = (
 				555DA7135A769871122A1ACC /* FeedParserTests.swift */,
+				0B98154952E9EBE3653917DA /* FeedParser.swift */,
+				B338F3417414B4C2C8C6F07A /* HTMLText.swift */,
+				E9C212F7FBC2E13C73CEFD9C /* OPMLService.swift */,
+				0868126341D980E55EEFF387 /* YouTube.swift */,
+				845179F1A0551FC90514DF77 /* Models.swift */,
 			);
 			path = BlindRSSTests;
 			sourceTree = "<group>";
