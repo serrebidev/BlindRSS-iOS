@@ -1,0 +1,402 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = { };
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1F64CB9B16EC674C8AC080FC /* BlindRSSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B7D59E3C895A5E4DDC46329 /* BlindRSSApp.swift */; };
+		0B85E806A020446844150741 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7584458489B580069B1F6362 /* Models.swift */; };
+		5D2540F60E2C50624B08851C /* HTMLText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76EE2AF976F64737E72BC548 /* HTMLText.swift */; };
+		D8D9AB085B01E74032B1AFFD /* FeedParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33E8E23612052FDCDBF2121 /* FeedParser.swift */; };
+		8F388877D1DB3DF438DC7D9D /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54900E78E4B6276D271AF736 /* LibraryStore.swift */; };
+		14FF3CF25EE407199210DD9B /* OPMLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FC04DE91CEF3FDBFA5F572 /* OPMLService.swift */; };
+		1A47132A959E649AD734DC3B /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8C0F18406639D8CB65CFA6 /* AudioPlayer.swift */; };
+		42C4A70413AF08CE85796859 /* Announcer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F8CA1ABBEA61AB35080F2F /* Announcer.swift */; };
+		8FCB3754AA66FF25492BC151 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C3A3EF47BB840877F867A4 /* ContentView.swift */; };
+		F1BE8C4E38AAAAFB6A335445 /* FeedListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D714DDA2475648C813BA919C /* FeedListView.swift */; };
+		18A43BCE391A28203717AF57 /* ArticleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012FA52CF629695B10310024 /* ArticleListView.swift */; };
+		CE02C8D019AD1421C68AAA18 /* ArticleReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB1C4D374411E29E6A00D0C /* ArticleReaderView.swift */; };
+		AA9DE3DDA40377030E03D038 /* PlayerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94093B1014F2F21AA2771580 /* PlayerViews.swift */; };
+		847B1724DC36DCA8FF90BAE6 /* AddFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */; };
+		008AA80755FEA8D8DD302FD9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D6716BFED10C9866B9FC4167 /* Assets.xcassets */; };
+		45E22652A8BEE3340A457275 /* FeedParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 555DA7135A769871122A1ACC /* FeedParserTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2283CC287528F4D354B98768 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AB1BF79258C6A2BD5DEA3A4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ACF01DFE8C3BD00BBA8C7D95;
+			remoteInfo = BlindRSS;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0B7D59E3C895A5E4DDC46329 /* BlindRSSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlindRSSApp.swift; sourceTree = "<group>"; };
+		7584458489B580069B1F6362 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		76EE2AF976F64737E72BC548 /* HTMLText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLText.swift; sourceTree = "<group>"; };
+		A33E8E23612052FDCDBF2121 /* FeedParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedParser.swift; sourceTree = "<group>"; };
+		54900E78E4B6276D271AF736 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		E1FC04DE91CEF3FDBFA5F572 /* OPMLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OPMLService.swift; sourceTree = "<group>"; };
+		7D8C0F18406639D8CB65CFA6 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		C3F8CA1ABBEA61AB35080F2F /* Announcer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Announcer.swift; sourceTree = "<group>"; };
+		B4C3A3EF47BB840877F867A4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D714DDA2475648C813BA919C /* FeedListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedListView.swift; sourceTree = "<group>"; };
+		012FA52CF629695B10310024 /* ArticleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleListView.swift; sourceTree = "<group>"; };
+		1BB1C4D374411E29E6A00D0C /* ArticleReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleReaderView.swift; sourceTree = "<group>"; };
+		94093B1014F2F21AA2771580 /* PlayerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViews.swift; sourceTree = "<group>"; };
+		EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFeedView.swift; sourceTree = "<group>"; };
+		D6716BFED10C9866B9FC4167 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BAB35C5E857793184326E99B /* BlindRSS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlindRSS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E14A3BE89594739ABEB83AC6 /* BlindRSSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BlindRSSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		555DA7135A769871122A1ACC /* FeedParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedParserTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2AB21F4E44321548ABE4B9E4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8F4F47D54A4ABF0AFEB07A31 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E3D3AA5070650F738241942D = {
+			isa = PBXGroup;
+			children = (
+				20484250E88E3C3A18D74360 /* BlindRSS */,
+				C777645ADBF4F370747A791E /* BlindRSSTests */,
+				EFD949CBAE9C01A712287B15 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		20484250E88E3C3A18D74360 /* BlindRSS */ = {
+			isa = PBXGroup;
+			children = (
+				0B7D59E3C895A5E4DDC46329 /* BlindRSSApp.swift */,
+				5A266B06D2189AE21F75E347 /* Models */,
+				E43CB2F387334F0765C2AA5E /* Services */,
+				2D7123010710F1CD7968A206 /* Views */,
+				D6716BFED10C9866B9FC4167 /* Assets.xcassets */,
+			);
+			path = BlindRSS;
+			sourceTree = "<group>";
+		};
+		5A266B06D2189AE21F75E347 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				7584458489B580069B1F6362 /* Models.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		E43CB2F387334F0765C2AA5E /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				76EE2AF976F64737E72BC548 /* HTMLText.swift */,
+				A33E8E23612052FDCDBF2121 /* FeedParser.swift */,
+				54900E78E4B6276D271AF736 /* LibraryStore.swift */,
+				E1FC04DE91CEF3FDBFA5F572 /* OPMLService.swift */,
+				7D8C0F18406639D8CB65CFA6 /* AudioPlayer.swift */,
+				C3F8CA1ABBEA61AB35080F2F /* Announcer.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		2D7123010710F1CD7968A206 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B4C3A3EF47BB840877F867A4 /* ContentView.swift */,
+				D714DDA2475648C813BA919C /* FeedListView.swift */,
+				012FA52CF629695B10310024 /* ArticleListView.swift */,
+				1BB1C4D374411E29E6A00D0C /* ArticleReaderView.swift */,
+				94093B1014F2F21AA2771580 /* PlayerViews.swift */,
+				EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		C777645ADBF4F370747A791E /* BlindRSSTests */ = {
+			isa = PBXGroup;
+			children = (
+				555DA7135A769871122A1ACC /* FeedParserTests.swift */,
+			);
+			path = BlindRSSTests;
+			sourceTree = "<group>";
+		};
+		EFD949CBAE9C01A712287B15 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BAB35C5E857793184326E99B /* BlindRSS.app */,
+				E14A3BE89594739ABEB83AC6 /* BlindRSSTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		ACF01DFE8C3BD00BBA8C7D95 /* BlindRSS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 030022B20DA8CF251D78EE7B /* Build configuration list for PBXNativeTarget "BlindRSS" */;
+			buildPhases = (
+				CA32A0FE6CA26604F287C121 /* Sources */,
+				2AB21F4E44321548ABE4B9E4 /* Frameworks */,
+				F6BD45C7A1653551F091EED0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BlindRSS;
+			productName = BlindRSS;
+			productReference = BAB35C5E857793184326E99B /* BlindRSS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		2F4625F9C64176C169FB9E4C /* BlindRSSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6732CABBFAEACE605F733130 /* Build configuration list for PBXNativeTarget "BlindRSSTests" */;
+			buildPhases = (
+				960870BEF38584CE0E2687D1 /* Sources */,
+				8F4F47D54A4ABF0AFEB07A31 /* Frameworks */,
+				2B8BEC621D0F586E9E000F61 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				86F448EEC56175840D2C19AF /* PBXTargetDependency */,
+			);
+			name = BlindRSSTests;
+			productName = BlindRSSTests;
+			productReference = E14A3BE89594739ABEB83AC6 /* BlindRSSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AB1BF79258C6A2BD5DEA3A4C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					ACF01DFE8C3BD00BBA8C7D95 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					2F4625F9C64176C169FB9E4C = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = ACF01DFE8C3BD00BBA8C7D95;
+					};
+				};
+			};
+			buildConfigurationList = 9CF94BBF4A85D236DAC65B84 /* Build configuration list for PBXProject "BlindRSS" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = E3D3AA5070650F738241942D;
+			productRefGroup = EFD949CBAE9C01A712287B15 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				ACF01DFE8C3BD00BBA8C7D95 /* BlindRSS */,
+				2F4625F9C64176C169FB9E4C /* BlindRSSTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F6BD45C7A1653551F091EED0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				008AA80755FEA8D8DD302FD9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2B8BEC621D0F586E9E000F61 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CA32A0FE6CA26604F287C121 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1F64CB9B16EC674C8AC080FC /* BlindRSSApp.swift in Sources */,
+				0B85E806A020446844150741 /* Models.swift in Sources */,
+				5D2540F60E2C50624B08851C /* HTMLText.swift in Sources */,
+				D8D9AB085B01E74032B1AFFD /* FeedParser.swift in Sources */,
+				8F388877D1DB3DF438DC7D9D /* LibraryStore.swift in Sources */,
+				14FF3CF25EE407199210DD9B /* OPMLService.swift in Sources */,
+				1A47132A959E649AD734DC3B /* AudioPlayer.swift in Sources */,
+				42C4A70413AF08CE85796859 /* Announcer.swift in Sources */,
+				8FCB3754AA66FF25492BC151 /* ContentView.swift in Sources */,
+				F1BE8C4E38AAAAFB6A335445 /* FeedListView.swift in Sources */,
+				18A43BCE391A28203717AF57 /* ArticleListView.swift in Sources */,
+				CE02C8D019AD1421C68AAA18 /* ArticleReaderView.swift in Sources */,
+				AA9DE3DDA40377030E03D038 /* PlayerViews.swift in Sources */,
+				847B1724DC36DCA8FF90BAE6 /* AddFeedView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		960870BEF38584CE0E2687D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				45E22652A8BEE3340A457275 /* FeedParserTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		86F448EEC56175840D2C19AF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ACF01DFE8C3BD00BBA8C7D95 /* BlindRSS */;
+			targetProxy = 2283CC287528F4D354B98768 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		DAC0EA1261488C710D8AA32F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9ABA5A1A5DD3FA54546B94D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5B8AFE71603EC8C9931D556B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = ;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.serrebidev.BlindRSS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E47D4D5ACB1F409506F0761E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = ;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.serrebidev.BlindRSS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		4C3E4571ED030BAD2B80ADBF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = org.serrebidev.BlindRSSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BlindRSS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BlindRSS";
+			};
+			name = Debug;
+		};
+		E61E55260A80C3F50CE59E5C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = org.serrebidev.BlindRSSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BlindRSS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BlindRSS";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9CF94BBF4A85D236DAC65B84 /* Build configuration list for PBXProject "BlindRSS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DAC0EA1261488C710D8AA32F /* Debug */,
+				9ABA5A1A5DD3FA54546B94D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		030022B20DA8CF251D78EE7B /* Build configuration list for PBXNativeTarget "BlindRSS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5B8AFE71603EC8C9931D556B /* Debug */,
+				E47D4D5ACB1F409506F0761E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6732CABBFAEACE605F733130 /* Build configuration list for PBXNativeTarget "BlindRSSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4C3E4571ED030BAD2B80ADBF /* Debug */,
+				E61E55260A80C3F50CE59E5C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AB1BF79258C6A2BD5DEA3A4C /* Project object */;
+}
