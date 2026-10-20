@@ -5,6 +5,7 @@
 - Fix Miniflux sync never finishing with large accounts. Sync used to fetch entries feed by feed (698 sequential requests on the reference account). It now uses the global entries endpoint, newest 2,000 entries in pages of 500, with progress announcements.
 - Bare server addresses like rss.example.com now get https:// automatically.
 - Sync failures are shown and announced instead of failing silently.
+- Lower CPU use in Miniflux sync, refresh, and adding feeds: constant-time article lookups instead of linear scans, JSON decoding and feed parsing off the main thread, 8 feeds refreshed at once, and single-pass unread counts in lists. Details in docs/CPU-AUDIT.md.
 
 ## 0.1.0
 
