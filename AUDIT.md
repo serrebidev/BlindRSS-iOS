@@ -50,11 +50,18 @@ Native SwiftUI app, iOS 17+, SwiftData persistence mirroring the desktop schema 
 
 Desktop keyboard commands map to iOS as follows: menus and buttons for sighted use, VoiceOver custom actions and swipe actions for blind use (next section), Magic Tap for play/pause, and hardware-keyboard shortcuts (Command-N, Command-R, Command-1 to 6 filters, and so on) for iPad and Mac Catalyst keyboards, reusing the desktop command ids from core/shortcuts.py.
 
-### Phase 2 (documented, not in this delivery)
+### Phase 2 (implemented in 0.1.0)
 
-Hosted providers (Miniflux first — it matches the desktop default provider in config.json — then Inoreader, The Old Reader, BazQux), full-text extraction parity, YouTube/Rumble/Odysee resolution (yt-dlp has no iOS equivalent; needs a server or a different resolver), filter rules engine, Smart Folder rule editor, casting beyond AirPlay (AVFoundation gives AirPlay natively; Chromecast/DLNA need third-party SDKs), silence skipping and equalizer (need an AVAudioEngine pipeline), feed discovery directories, and translations.
-
-Nothing in Phase 2 is silently dropped: each item needs a decision, listed at the end of this file.
+- Hosted providers: Miniflux REST client plus one Google Reader API client covering Inoreader, The Old Reader, and BazQux (Services/Providers.swift). Accounts live in Settings, Online Account. Items mirror into the local library with provider-prefixed ids.
+- Full-text recovery: Fetch Full Text in the reader keeps the longer of feed text and recovered page text (Services/Downloads.swift, FullTextService).
+- Feed discovery: subscribing to a web page URL finds its advertised feed (FullTextService.discoverFeeds).
+- Smart Folders and Filter Rules: models in Models/Models.swift, editors in Views/ManageViews.swift. Filter rules (mark read, favorite, delete) apply as articles arrive.
+- Deleted Articles view with restore and permanent delete; feed properties editing; article media filter and sort; copy link; downloads.
+- YouTube: channel feeds parse as RSS; video articles play in the embedded player and chapters are parsed from description timestamps (Services/YouTube.swift). Direct stream resolution (desktop yt-dlp) has no iOS equivalent; the embed player is the iOS answer.
+- Downloads play offline through AVPlayer, or through the equalizer engine (five-band EQ plus silence skipping, Services/EnginePlayer.swift) from the Downloads view.
+- Casting: AirPlay route picker in the equalizer player and system player. Chromecast and DLNA need Google's Cast SDK and a Cast application id; that is the one desktop feature not ported, because it cannot ship without the owner's Cast credentials.
+- Notifications for new articles after refresh (Settings toggle), announcements for all major state changes.
+- Translations: not ported. The desktop catalogs are gettext files for 15 languages; iOS needs String Catalogs. English ships in 0.1.0.
 
 ## VoiceOver design (from the CVS Health techniques repo)
 
@@ -71,13 +78,10 @@ Rules applied from SKILL.md and the technique docs:
 - Sheets and modals return VoiceOver focus to their trigger with `@AccessibilityFocusState` on dismiss.
 - Dynamic Type: text styles only, no fixed point sizes, no `.lineLimit(1)`, scrollable reader. Semantic colors only (`.primary`, `.secondary`), 44pt minimum touch targets, `.navigationTitle` on every pushed view, Reduce Motion respected, no orientation lock.
 
-## Decisions needed before Phase 2
+## Distribution decision
 
-1. Hosted providers: ship Miniflux only, or all four hosted providers? Desktop defaults to Miniflux.
-2. Media resolution: YouTube/Rumble/Odysee need a resolver story on iOS (no yt-dlp). Options: skip, server-side resolver, or audio-only via public instances.
-3. Casting: AirPlay only, or add Google Cast SDK (third-party dependency, privacy review)?
-4. Distribution: App Store, TestFlight only, or sideload? Affects background refresh and file access entitlements.
+Distribution is GitHub Releases plus the serrebiALT AltStore source (https://github.com/serrebidev/serrebiALT). Builds are unsigned; AltStore re-signs on install. No App Store or TestFlight in 0.1.0.
 
-## Verification limits
+## Verification
 
-This workspace is WSL2 on Windows: no Xcode, no swift toolchain, no simulator. The project is delivered as a complete Xcode project plus a SwiftData/SwiftUI source tree that must be opened on a Mac to build. Structural checks (project file balance, file inventory, cross-references) were run here; a Mac build and a VoiceOver pass on device are still required. See README.md in this repo for the Mac steps.
+Built and tested by GitHub Actions on macos-15 (unit tests on a simulator, a11y-check report attached to build artifacts, unsigned IPA). This workspace is WSL2 with no Xcode, so local verification is structural only. A VoiceOver pass on a real device is still recommended before announcing.

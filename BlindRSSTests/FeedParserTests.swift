@@ -62,6 +62,21 @@ final class FeedParserTests: XCTestCase {
     }
 }
 
+final class YouTubeServiceTests: XCTestCase {
+    func testVideoIDFromWatchURL() {
+        XCTAssertEqual(YouTubeService.videoID(from: "https://www.youtube.com/watch?v=abc123XYZ"), "abc123XYZ")
+        XCTAssertEqual(YouTubeService.videoID(from: "https://youtu.be/abc123XYZ"), "abc123XYZ")
+        XCTAssertNil(YouTubeService.videoID(from: "https://example.com/video"))
+    }
+
+    func testChaptersFromDescription() {
+        let chapters = YouTubeService.chapters(fromDescription: "Intro line\n0:00 Start\n2:30 Middle\n1:02:00 End")
+        XCTAssertEqual(chapters.count, 3)
+        XCTAssertEqual(chapters[1].start, 150)
+        XCTAssertEqual(chapters[2].start, 3720)
+    }
+}
+
 final class HTMLTextTests: XCTestCase {
     func testStripsTagsAndBreaksParagraphs() {
         let text = HTMLText.plainText(from: "<p>One</p><p>Two &amp; three</p><script>junk</script>")

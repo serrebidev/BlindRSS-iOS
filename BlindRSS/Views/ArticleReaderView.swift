@@ -10,11 +10,19 @@ import SwiftUI
 struct ArticleReaderView: View {
     @Environment(AudioPlayer.self) private var player
     @Environment(\.openURL) private var openURL
+    @State private var fullText: String?
+    @State private var isFetchingFullText = false
     let article: Article
 
     private var bodyText: String {
+        if let fullText { return fullText }
         let content = HTMLText.plainText(from: article.content)
         return content.isEmpty ? HTMLText.plainText(from: article.summary) : content
+    }
+
+    private var youTubeID: String? { YouTubeService.videoID(from: article.url) }
+    private var descriptionChapters: [Chapter] {
+        YouTubeService.chapters(fromDescription: HTMLText.plainText(from: article.content))
     }
 
     var body: some View {
@@ -48,6 +56,44 @@ struct ArticleReaderView: View {
                     .buttonStyle(.borderedProminent)
                     .frame(minHeight: 44)
                     .accessibilityHint("Plays the audio or video attached to this article.")
+                }
+
+                if let youTubeID {
+                    YouTubePlayerView(videoID: youTubeID)
+                        .frame(height: 220)
+                        .accessibilityLabel("YouTube video player")
+                        .accessibilityHint("Plays the video on this page.")
+                }
+
+                HStack(spacing: 12) {
+                    Button {
+                        Task {
+                            isFetchingFullText = true
+                            fullText = await FullTextService.fetchFullText(for: article)
+                            isFetchingFullText = false
+                            Announcer.announce(fullText != nil ? "Full text loaded." : "Feed text is already the fullest version.")
+                        }
+                    } label: {
+                        Label(isFetchingFullText ? "Fetching" : "Fetch Full Text", systemImage: "doc.text.magnifyingglass")
+                    }
+                    .disabled(isFetchingFullText)
+                    .accessibilityHint("Recovers the complete article when the feed only sent a summary.")
+                    if article.hasMedia {
+                        Button {
+                            Task { try? await DownloadService.download(article: article) }
+                        } label: {
+                            Label("Download", systemImage: "arrow.down.circle")
+                        }
+                        .accessibilityHint("Downloads the media for offline listening.")
+                    }
+                }
+
+                if !descriptionChapters.isEmpty, article.chapters.isEmpty {
+                    Text("Chapters").font(.headline).accessibilityAddTraits(.isHeader)
+                    ForEach(descriptionChapters) { chapter in
+                        Text("\(AudioPlayer.formatTime(chapter.start)) \(chapter.title)")
+                            .accessibilityLabel("\(chapter.title), \(AudioPlayer.formatTime(chapter.start))")
+                    }
                 }
 
                 if !article.chapters.isEmpty {

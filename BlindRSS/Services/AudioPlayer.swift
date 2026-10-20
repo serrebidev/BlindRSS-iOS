@@ -53,7 +53,16 @@ final class AudioPlayer {
     }
 
     func play(article: Article, resumeAt: TimeInterval = 0) {
+        // Downloaded episodes play from disk (offline, no network).
+        if let local = DownloadService.localURL(for: article) {
+            playURL(local, article: article, resumeAt: resumeAt)
+            return
+        }
         guard let media = article.mediaURL, let url = URL(string: media) else { return }
+        playURL(url, article: article, resumeAt: resumeAt)
+    }
+
+    private func playURL(_ url: URL, article: Article, resumeAt: TimeInterval = 0) {
         currentArticle = article
         currentTitle = article.title
         let item = AVPlayerItem(url: url)

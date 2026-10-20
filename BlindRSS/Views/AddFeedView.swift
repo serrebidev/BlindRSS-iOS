@@ -5,6 +5,7 @@
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 /// Add-feed form (desktop Add Feed, Ctrl+N). Visible labels on every field;
 /// errors are announced, not only shown (technique: Error Validation).
@@ -70,17 +71,32 @@ struct AddFeedView: View {
             _ = try await store.addFeed(urlString: urlText, category: category, in: context)
             dismiss()
         } catch {
+            // Feed discovery: the URL may be a web page advertising a feed.
+            if let page = URL(string: urlText) {
+                let discovered = await FullTextService.discoverFeeds(pageURL: page)
+                if let first = discovered.first {
+                    do {
+                        _ = try await store.addFeed(urlString: first.url.absoluteString, category: category, in: context)
+                        dismiss()
+                        return
+                    } catch { /* fall through to the error below */ }
+                }
+            }
             errorMessage = error.localizedDescription
             Announcer.announce("Could not subscribe. \(error.localizedDescription)")
+            isAdding = false
+            return
         }
         isAdding = false
     }
+
 }
 
 /// Settings (desktop Settings subset for Phase 1). Every Toggle and Picker
 /// keeps its visible label; nothing is labels-hidden without a replacement.
 struct SettingsView: View {
     @AppStorage("refreshOnStartup") private var refreshOnStartup = true
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     @AppStorage("playbackSpeed") private var playbackSpeed = 1.0
     @AppStorage("seekInterval") private var seekInterval = 30.0
 
@@ -122,6 +138,23 @@ struct SettingsView: View {
                     .accessibilityLabel("Seek interval")
                 } header: {
                     Text("Player")
+                        .accessibilityAddTraits(.isHeader)
+                }
+
+                Section {
+                    NavigationLink { ProviderSettingsView() } label: { Label("Online Account", systemImage: "person.crop.circle") }
+                        .accessibilityHint("Connects Miniflux, Inoreader, The Old Reader, or BazQux.")
+                    NavigationLink { SmartFoldersView() } label: { Label("Smart Folders", systemImage: "folder.badge.gearshape") }
+                    NavigationLink { FilterRulesView() } label: { Label("Filter Rules", systemImage: "line.3.horizontal.decrease") }
+                    NavigationLink { DeletedArticlesView() } label: { Label("Deleted Articles", systemImage: "trash") }
+                    NavigationLink { DownloadsView() } label: { Label("Downloads", systemImage: "arrow.down.circle") }
+                    Toggle("Notifications for new articles", isOn: $notificationsEnabled)
+                        .accessibilityHint("Posts a notification after a refresh finds new articles.")
+                        .onChange(of: notificationsEnabled) { _, enabled in
+                            if enabled { Task { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) } }
+                        }
+                } header: {
+                    Text("Library")
                         .accessibilityAddTraits(.isHeader)
                 }
 

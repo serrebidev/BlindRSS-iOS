@@ -61,6 +61,8 @@ final class Article {
     var isFavorite: Bool
     var mediaURL: String?
     var mediaType: String?
+    /// Local filename in Documents/Downloads once the media is downloaded.
+    var localFileName: String?
     var openedAt: Date?
 
     var feed: Feed?
@@ -145,6 +147,83 @@ final class PlaybackState {
         self.updatedAt = Date()
         self.completed = completed
         self.title = title
+    }
+}
+
+/// Desktop table: smart_folders (id, name, rule_json, position).
+/// Rule fields are the iOS form of the desktop rule tree leaves.
+@Model
+final class SmartFolder {
+    @Attribute(.unique) var id: String
+    var name: String
+    /// all, unread, or favorites
+    var readState: String
+    var titleContains: String
+    var feedTitleContains: String
+    var hasMediaOnly: Bool
+    var position: Int
+
+    init(name: String, readState: String = "all", titleContains: String = "",
+         feedTitleContains: String = "", hasMediaOnly: Bool = false, position: Int = 0) {
+        self.id = UUID().uuidString
+        self.name = name
+        self.readState = readState
+        self.titleContains = titleContains
+        self.feedTitleContains = feedTitleContains
+        self.hasMediaOnly = hasMediaOnly
+        self.position = position
+    }
+
+    func matches(_ article: Article) -> Bool {
+        switch readState {
+        case "unread": if article.isRead { return false }
+        case "favorites": if !article.isFavorite { return false }
+        default: break
+        }
+        if !titleContains.isEmpty,
+           !article.title.localizedCaseInsensitiveContains(titleContains) { return false }
+        if !feedTitleContains.isEmpty,
+           !(article.feed?.title.localizedCaseInsensitiveContains(feedTitleContains) ?? false) { return false }
+        if hasMediaOnly, !article.hasMedia { return false }
+        return true
+    }
+}
+
+/// Desktop table: filter_rules (id, name, rule_json, actions_json, enabled, stop, position).
+/// Applied to articles as they arrive during refresh.
+@Model
+final class FilterRule {
+    @Attribute(.unique) var id: String
+    var name: String
+    /// title, content, feed, or author
+    var field: String
+    var contains: String
+    /// markRead, favorite, or delete
+    var action: String
+    var enabled: Bool
+    var position: Int
+
+    init(name: String, field: String = "title", contains: String = "",
+         action: String = "markRead", enabled: Bool = true, position: Int = 0) {
+        self.id = UUID().uuidString
+        self.name = name
+        self.field = field
+        self.contains = contains
+        self.action = action
+        self.enabled = enabled
+        self.position = position
+    }
+
+    func matches(_ article: Article) -> Bool {
+        guard enabled, !contains.isEmpty else { return false }
+        let haystack: String
+        switch field {
+        case "content": haystack = HTMLText.plainText(from: article.content)
+        case "feed": haystack = article.feed?.title ?? ""
+        case "author": haystack = article.author
+        default: haystack = article.title
+        }
+        return haystack.localizedCaseInsensitiveContains(contains)
     }
 }
 

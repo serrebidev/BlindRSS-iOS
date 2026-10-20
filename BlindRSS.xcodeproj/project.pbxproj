@@ -14,12 +14,17 @@
 		14FF3CF25EE407199210DD9B /* OPMLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FC04DE91CEF3FDBFA5F572 /* OPMLService.swift */; };
 		1A47132A959E649AD734DC3B /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8C0F18406639D8CB65CFA6 /* AudioPlayer.swift */; };
 		42C4A70413AF08CE85796859 /* Announcer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F8CA1ABBEA61AB35080F2F /* Announcer.swift */; };
+		AA2EECD200EA553D9A828F8A /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 840801DFEB8F92C2A185386C /* Downloads.swift */; };
+		75CE24C7EAD0379575D699EB /* Providers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6BE85A6911C26DA1AD6C0B7 /* Providers.swift */; };
+		A41D5FF71DC717204E49B520 /* YouTube.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C31FB855687D1E51424EE8 /* YouTube.swift */; };
+		3E822A0C67CF70D2C4400BED /* EnginePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5FF1069F4650FEF6E94591 /* EnginePlayer.swift */; };
 		8FCB3754AA66FF25492BC151 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C3A3EF47BB840877F867A4 /* ContentView.swift */; };
 		F1BE8C4E38AAAAFB6A335445 /* FeedListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D714DDA2475648C813BA919C /* FeedListView.swift */; };
 		18A43BCE391A28203717AF57 /* ArticleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012FA52CF629695B10310024 /* ArticleListView.swift */; };
 		CE02C8D019AD1421C68AAA18 /* ArticleReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB1C4D374411E29E6A00D0C /* ArticleReaderView.swift */; };
 		AA9DE3DDA40377030E03D038 /* PlayerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94093B1014F2F21AA2771580 /* PlayerViews.swift */; };
 		847B1724DC36DCA8FF90BAE6 /* AddFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */; };
+		9C88F3D44616A3238B38DA4B /* ManageViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA295F141778656B8F77BC1 /* ManageViews.swift */; };
 		008AA80755FEA8D8DD302FD9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D6716BFED10C9866B9FC4167 /* Assets.xcassets */; };
 		45E22652A8BEE3340A457275 /* FeedParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 555DA7135A769871122A1ACC /* FeedParserTests.swift */; };
 /* End PBXBuildFile section */
@@ -43,12 +48,17 @@
 		E1FC04DE91CEF3FDBFA5F572 /* OPMLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OPMLService.swift; sourceTree = "<group>"; };
 		7D8C0F18406639D8CB65CFA6 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		C3F8CA1ABBEA61AB35080F2F /* Announcer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Announcer.swift; sourceTree = "<group>"; };
+		840801DFEB8F92C2A185386C /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
+		D6BE85A6911C26DA1AD6C0B7 /* Providers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Providers.swift; sourceTree = "<group>"; };
+		B6C31FB855687D1E51424EE8 /* YouTube.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTube.swift; sourceTree = "<group>"; };
+		6C5FF1069F4650FEF6E94591 /* EnginePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnginePlayer.swift; sourceTree = "<group>"; };
 		B4C3A3EF47BB840877F867A4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D714DDA2475648C813BA919C /* FeedListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedListView.swift; sourceTree = "<group>"; };
 		012FA52CF629695B10310024 /* ArticleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleListView.swift; sourceTree = "<group>"; };
 		1BB1C4D374411E29E6A00D0C /* ArticleReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleReaderView.swift; sourceTree = "<group>"; };
 		94093B1014F2F21AA2771580 /* PlayerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViews.swift; sourceTree = "<group>"; };
 		EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFeedView.swift; sourceTree = "<group>"; };
+		8CA295F141778656B8F77BC1 /* ManageViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageViews.swift; sourceTree = "<group>"; };
 		D6716BFED10C9866B9FC4167 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BAB35C5E857793184326E99B /* BlindRSS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlindRSS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E14A3BE89594739ABEB83AC6 /* BlindRSSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BlindRSSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -111,6 +121,10 @@
 				E1FC04DE91CEF3FDBFA5F572 /* OPMLService.swift */,
 				7D8C0F18406639D8CB65CFA6 /* AudioPlayer.swift */,
 				C3F8CA1ABBEA61AB35080F2F /* Announcer.swift */,
+				840801DFEB8F92C2A185386C /* Downloads.swift */,
+				D6BE85A6911C26DA1AD6C0B7 /* Providers.swift */,
+				B6C31FB855687D1E51424EE8 /* YouTube.swift */,
+				6C5FF1069F4650FEF6E94591 /* EnginePlayer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -124,6 +138,7 @@
 				1BB1C4D374411E29E6A00D0C /* ArticleReaderView.swift */,
 				94093B1014F2F21AA2771580 /* PlayerViews.swift */,
 				EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */,
+				8CA295F141778656B8F77BC1 /* ManageViews.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -252,12 +267,17 @@
 				14FF3CF25EE407199210DD9B /* OPMLService.swift in Sources */,
 				1A47132A959E649AD734DC3B /* AudioPlayer.swift in Sources */,
 				42C4A70413AF08CE85796859 /* Announcer.swift in Sources */,
+				AA2EECD200EA553D9A828F8A /* Downloads.swift in Sources */,
+				75CE24C7EAD0379575D699EB /* Providers.swift in Sources */,
+				A41D5FF71DC717204E49B520 /* YouTube.swift in Sources */,
+				3E822A0C67CF70D2C4400BED /* EnginePlayer.swift in Sources */,
 				8FCB3754AA66FF25492BC151 /* ContentView.swift in Sources */,
 				F1BE8C4E38AAAAFB6A335445 /* FeedListView.swift in Sources */,
 				18A43BCE391A28203717AF57 /* ArticleListView.swift in Sources */,
 				CE02C8D019AD1421C68AAA18 /* ArticleReaderView.swift in Sources */,
 				AA9DE3DDA40377030E03D038 /* PlayerViews.swift in Sources */,
 				847B1724DC36DCA8FF90BAE6 /* AddFeedView.swift in Sources */,
+				9C88F3D44616A3238B38DA4B /* ManageViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -312,7 +332,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.serrebidev.BlindRSS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -332,7 +352,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.serrebidev.BlindRSS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

@@ -15,6 +15,7 @@ struct BlindRSSApp: App {
                 .environment(player)
         }
         .modelContainer(for: [Feed.self, Article.self, Category.self,
-                              Chapter.self, PlaybackState.self, DeletedArticle.self])
+                              Chapter.self, PlaybackState.self, DeletedArticle.self,
+                              SmartFolder.self, FilterRule.self])
     }
 }

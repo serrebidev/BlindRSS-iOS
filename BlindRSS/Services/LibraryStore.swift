@@ -4,6 +4,7 @@
 
 import Foundation
 import SwiftData
+import UserNotifications
 
 /// Feed fetching and library mutations. The iOS counterpart of the desktop
 /// Local provider (providers/local.py): add/remove feeds, refresh with
@@ -67,6 +68,14 @@ final class LibraryStore {
             newTotal += max(0, feed.articles.count - before)
         }
         Announcer.announce("Refresh complete. \(newTotal) new articles.")
+        if newTotal > 0, UserDefaults.standard.bool(forKey: "notificationsEnabled") {
+            let content = UNMutableNotificationContent()
+            content.title = "BlindRSS"
+            content.body = "\(newTotal) new articles."
+            content.sound = .default
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        }
     }
 
     // MARK: Articles
@@ -88,6 +97,29 @@ final class LibraryStore {
         for article in articles where !article.isRead { article.isRead = true }
         try? context.save()
         Announcer.announce("Marked \(articles.count) articles as read.")
+    }
+
+    /// Restores a deleted article from its snapshot and clears the tombstone.
+    func restoreDeleted(_ deleted: DeletedArticle, in context: ModelContext) {
+        guard let feed = (try? context.fetch(FetchDescriptor<Feed>()))?.first(where: { $0.id == deleted.feedID }) else { return }
+        let article = Article(id: deleted.articleID, title: deleted.title ?? "Untitled",
+                              url: deleted.url ?? "", content: deleted.content ?? "",
+                              summary: deleted.summary, dateRaw: deleted.dateRaw ?? "",
+                              author: deleted.author ?? "", isRead: deleted.isRead ?? false,
+                              isFavorite: deleted.isFavorite ?? false,
+                              mediaURL: deleted.mediaURL, mediaType: deleted.mediaType, feed: feed)
+        feed.articles.append(article)
+        context.insert(article)
+        context.delete(deleted)
+        try? context.save()
+        Announcer.announce("Restored \(article.title).")
+    }
+
+    func purgeDeleted(_ deleted: DeletedArticle, in context: ModelContext) {
+        deleted.purged = true
+        context.delete(deleted)
+        try? context.save()
+        Announcer.announce("Permanently deleted.")
     }
 
     /// Snapshots the article into DeletedArticle (tombstone), then removes it,
@@ -144,9 +176,22 @@ final class LibraryStore {
                 feed.articles.append(article)
                 context.insert(article)
                 added += 1
+                applyFilterRules(to: article, in: context)
             }
         }
         return added
+    }
+
+    /// Desktop Filter Rules: mark read, favorite, or delete on arrival.
+    private func applyFilterRules(to article: Article, in context: ModelContext) {
+        let rules = (try? context.fetch(FetchDescriptor<FilterRule>(sortBy: [SortDescriptor(\.position)]))) ?? []
+        for rule in rules where rule.matches(article) {
+            switch rule.action {
+            case "favorite": article.isFavorite = true
+            case "delete": deleteArticle(article, in: context); return
+            default: article.isRead = true
+            }
+        }
     }
 }
 

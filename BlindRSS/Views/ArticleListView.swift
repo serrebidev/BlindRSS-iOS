@@ -4,6 +4,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// Article list (desktop article list). This view carries the port's core
 /// VoiceOver pattern, from ios-swiftui-accessibility-techniques:
@@ -25,6 +26,9 @@ struct ArticleListView: View {
     @State private var store = LibraryStore()
     @State private var searchText = ""
     @State private var articleToShare: Article?
+    /// Desktop article filters and sorting (Ctrl+1..6 views, Sort menu).
+    @State private var mediaFilter = "all"
+    @State private var sortNewestFirst = true
 
     let selection: LibrarySelection
     let feed: Feed?
@@ -38,6 +42,15 @@ struct ArticleListView: View {
                 $0.title.localizedCaseInsensitiveContains(searchText)
                     || HTMLText.plainText(from: $0.content).localizedCaseInsensitiveContains(searchText)
             }
+        }
+        switch mediaFilter {
+        case "with": result = result.filter { $0.hasMedia }
+        case "without": result = result.filter { !$0.hasMedia }
+        default: break
+        }
+        result.sort { a, b in
+            let da = a.date ?? .distantPast, db = b.date ?? .distantPast
+            return sortNewestFirst ? da > db : da < db
         }
         return result
     }
@@ -84,6 +97,21 @@ struct ArticleListView: View {
                 }
                 .accessibilityHint("Marks every article in this list as read.")
                 .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
+            ToolbarItem(placement: .secondaryAction) {
+                Menu {
+                    Picker("Media", selection: $mediaFilter) {
+                        Text("Media and Non-media").tag("all")
+                        Text("With Media Only").tag("with")
+                        Text("Without Media Only").tag("without")
+                    }
+                    Button(sortNewestFirst ? "Sort Oldest First" : "Sort Newest First") {
+                        sortNewestFirst.toggle()
+                    }
+                } label: {
+                    Label("Filter and Sort", systemImage: "line.3.horizontal.decrease.circle")
+                }
+                .accessibilityHint("Filters by media and changes sort order.")
             }
         }
     }
@@ -181,6 +209,13 @@ private struct ArticleRow: View {
         .accessibilityAction {
             if let url = URL(string: article.url) { openURL(url) }
         } label: { Label("Open in Browser", systemImage: "safari") }
+        .accessibilityAction {
+            UIPasteboard.general.string = article.url
+            Announcer.announce("Link copied.")
+        } label: { Label("Copy Link", systemImage: "doc.on.doc") }
+        .accessibilityAction {
+            Task { try? await DownloadService.download(article: article) }
+        } label: { Label("Download Media", systemImage: "arrow.down.circle") }
         .accessibilityAction {
             store.deleteArticle(article, in: context)
         } label: { Label("Delete", systemImage: "trash") }

@@ -14,6 +14,7 @@ struct FeedListView: View {
     @State private var store = LibraryStore()
     @State private var showingAddFeed = false
     @State private var showingSettings = false
+    @State private var editingFeed: Feed?
     @State private var isRefreshing = false
     @AccessibilityFocusState private var addButtonFocused: Bool
 
@@ -97,6 +98,9 @@ struct FeedListView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
+        .sheet(item: $editingFeed) { feed in
+            FeedEditView(feed: feed)
+        }
     }
 
     private func badgeValue(for view: LibrarySelection) -> String {
@@ -161,6 +165,7 @@ struct FeedListView: View {
         .accessibilityAction { selectedFeed = feed; selection = .all } label: { Label("Open", systemImage: "doc.text") }
         .accessibilityAction { Task { await store.refresh(feed: feed, in: context) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
         .accessibilityAction { markAllRead(feed) } label: { Label("Mark All Read", systemImage: "envelope.open") }
+        .accessibilityAction { editingFeed = feed } label: { Label("Edit Feed", systemImage: "pencil") }
         .accessibilityAction {
             store.removeFeed(feed, in: context)
             if selectedFeed?.id == feed.id { selectedFeed = nil }
