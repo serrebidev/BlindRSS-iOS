@@ -78,15 +78,15 @@ final class HostedSync {
 
     // MARK: Miniflux (https://miniflux.app/docs/api.html)
 
-    private struct MFFeed: Decodable { let id: Int; let title: String; let site_url: String?; let feed_url: String; let category: MFCat? }
-    private struct MFCat: Decodable { let title: String }
-    private struct MFEntries: Decodable { let entries: [MFEntry] }
-    private struct MFEntry: Decodable {
+    private struct MFFeed: Decodable, Sendable { let id: Int; let title: String; let site_url: String?; let feed_url: String; let category: MFCat? }
+    private struct MFCat: Decodable, Sendable { let title: String }
+    private struct MFEntries: Decodable, Sendable { let entries: [MFEntry] }
+    private struct MFEntry: Decodable, Sendable {
         let id: Int; let feed_id: Int; let title: String; let url: String; let content: String?
         let published_at: String?; let author: String?; let status: String
         let starred: Bool; let enclosures: [MFEnclosure]?
     }
-    private struct MFEnclosure: Decodable { let url: String; let mime_type: String? }
+    private struct MFEnclosure: Decodable, Sendable { let url: String; let mime_type: String? }
 
     /// Miniflux sync. The old version fetched entries feed by feed: with
     /// 698 feeds that is 698 sequential requests and it looks frozen.
@@ -94,11 +94,17 @@ final class HostedSync {
     /// newest 2,000 entries in four requests, grouped by feed_id locally.
     private func syncMiniflux(config: HostedConfig, in context: ModelContext) async throws -> Int {
         let feeds: [MFFeed] = try await request(config: config, path: "/v1/feeds", decode: [MFFeed].self)
-        var feedsByID: [String: Feed] = [:]
+        // One fetch for all existing feeds, not one full-table fetch per
+        // feed (698 fetches on the reference account before this fix).
+        var feedsByID = fetchAllFeedsByID(in: context)
         for mfeed in feeds {
             let feedID = "miniflux:\(mfeed.id)"
-            feedsByID[feedID] = fetchOrCreateFeed(id: feedID, title: mfeed.title, url: mfeed.feed_url,
-                                                  category: mfeed.category?.title ?? Category.uncategorized, in: context)
+            if feedsByID[feedID] == nil {
+                let feed = Feed(id: feedID, url: mfeed.feed_url, title: mfeed.title,
+                                category: mfeed.category?.title ?? Category.uncategorized)
+                context.insert(feed)
+                feedsByID[feedID] = feed
+            }
         }
         try context.save()
         Announcer.announce("Found \(feeds.count) feeds. Fetching articles.")
@@ -113,10 +119,18 @@ final class HostedSync {
                 path: "/v1/entries?order=published_at&direction=desc&limit=\(pageSize)&offset=\(fetched)",
                 decode: MFEntries.self)
             if page.entries.isEmpty { break }
+            // Per-feed article dictionaries built once per page set:
+            // replaces a linear scan of each feed's articles per entry.
+            var articlesByFeedID: [String: [String: Article]] = [:]
             for entry in page.entries {
                 guard let feed = feedsByID["miniflux:\(entry.feed_id)"] else { continue }
+                if articlesByFeedID[feed.id] == nil {
+                    var dict: [String: Article] = [:]
+                    for article in feed.articles { dict[article.id] = article }
+                    articlesByFeedID[feed.id] = dict
+                }
                 let articleID = "miniflux:\(entry.id)"
-                if let existing = feed.articles.first(where: { $0.id == articleID }) {
+                if let existing = articlesByFeedID[feed.id]?[articleID] {
                     existing.isRead = entry.status == "read"
                     existing.isFavorite = entry.starred
                     continue
@@ -130,6 +144,7 @@ final class HostedSync {
                 article.date = entry.published_at.flatMap(FeedParser.parseDate)
                 feed.articles.append(article)
                 context.insert(article)
+                articlesByFeedID[feed.id]?[articleID] = article
                 added += 1
             }
             fetched += page.entries.count
@@ -143,32 +158,42 @@ final class HostedSync {
 
     // MARK: Google Reader API (Inoreader, The Old Reader, BazQux)
 
-    private struct GRSubs: Decodable { let subscriptions: [GRSub] }
-    private struct GRSub: Decodable { let id: String; let title: String; let url: String?; let categories: [GRSubCat]? }
-    private struct GRSubCat: Decodable { let label: String? }
-    private struct GRItems: Decodable { let items: [GRItem]? }
-    private struct GRItem: Decodable {
+    private struct GRSubs: Decodable, Sendable { let subscriptions: [GRSub] }
+    private struct GRSub: Decodable, Sendable { let id: String; let title: String; let url: String?; let categories: [GRSubCat]? }
+    private struct GRSubCat: Decodable, Sendable { let label: String? }
+    private struct GRItems: Decodable, Sendable { let items: [GRItem]? }
+    private struct GRItem: Decodable, Sendable {
         let id: String; let title: String?; let published: Int?
         let canonical: [GRLink]?; let alternate: [GRLink]?
         let summary: GRContent?; let content: GRContent?
         let author: String?; let enclosure: [GRLink]?
         let categories: [String]?
     }
-    private struct GRLink: Decodable { let href: String?; let type: String? }
-    private struct GRContent: Decodable { let content: String? }
+    private struct GRLink: Decodable, Sendable { let href: String?; let type: String? }
+    private struct GRContent: Decodable, Sendable { let content: String? }
 
     private func syncGReader(config: HostedConfig, in context: ModelContext) async throws -> Int {
         let subs: GRSubs = try await request(config: config, path: "/reader/api/0/subscription/list?output=json", decode: GRSubs.self)
+        var feedsByID = fetchAllFeedsByID(in: context)
         var added = 0
         for sub in subs.subscriptions {
             let feedID = "greader:\(config.kind.rawValue):\(sub.id)"
-            let feed = fetchOrCreateFeed(id: feedID, title: sub.title, url: sub.url ?? "",
-                                         category: sub.categories?.first?.label ?? Category.uncategorized, in: context)
+            let feed: Feed
+            if let existing = feedsByID[feedID] {
+                feed = existing
+            } else {
+                feed = Feed(id: feedID, url: sub.url ?? "", title: sub.title,
+                            category: sub.categories?.first?.label ?? Category.uncategorized)
+                context.insert(feed)
+                feedsByID[feedID] = feed
+            }
+            var knownIDs = Set(feed.articles.map(\.id))
             let encoded = sub.id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? sub.id
             let items: GRItems = try await request(config: config, path: "/reader/api/0/stream/contents/\(encoded)?n=50&output=json", decode: GRItems.self)
             for item in items.items ?? [] {
                 let articleID = "greader:\(config.kind.rawValue):\(item.id)"
-                if feed.articles.contains(where: { $0.id == articleID }) { continue }
+                if knownIDs.contains(articleID) { continue }
+                knownIDs.insert(articleID)
                 let link = item.canonical?.first?.href ?? item.alternate?.first?.href ?? ""
                 let cats = item.categories ?? []
                 let article = Article(id: articleID, title: item.title ?? "Untitled", url: link,
@@ -191,6 +216,13 @@ final class HostedSync {
 
     // MARK: Helpers
 
+    /// Single fetch of every stored feed keyed by id. Callers that create
+    /// feeds in a loop must use this instead of fetching per feed.
+    private func fetchAllFeedsByID(in context: ModelContext) -> [String: Feed] {
+        let all = (try? context.fetch(FetchDescriptor<Feed>())) ?? []
+        return Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+    }
+
     private func fetchOrCreateFeed(id: String, title: String, url: String, category: String, in context: ModelContext) -> Feed {
         if let existing = (try? context.fetch(FetchDescriptor<Feed>()))?.first(where: { $0.id == id }) {
             return existing
@@ -210,7 +242,7 @@ final class HostedSync {
         return base
     }
 
-    private func request<T: Decodable>(config: HostedConfig, path: String, decode: T.Type) async throws -> T {
+    private func request<T: Decodable & Sendable>(config: HostedConfig, path: String, decode: T.Type) async throws -> T {
         let base = Self.normalizedBaseURL(config.baseURL)
         guard let url = URL(string: base + path), url.scheme != nil else { throw LibraryError.invalidURL }
         var request = URLRequest(url: url)
@@ -224,6 +256,10 @@ final class HostedSync {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw LibraryError.httpStatus(http.statusCode)
         }
-        return try JSONDecoder().decode(T.self, from: data)
+        // Miniflux pages are ~4 MB of JSON; decoding on the main actor
+        // stalled the UI. Decode detached and hand back the value.
+        return try await Task.detached(priority: .userInitiated) {
+            try JSONDecoder().decode(T.self, from: data)
+        }.value
     }
 }

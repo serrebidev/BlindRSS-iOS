@@ -299,7 +299,8 @@ final class AudioPlayer {
 
     func restoreQueue(articles: [Article]) {
         let ids = UserDefaults.standard.stringArray(forKey: "playQueue.ids") ?? []
-        queue = ids.compactMap { id in articles.first(where: { $0.id == id }) }
+        let byID = Dictionary(uniqueKeysWithValues: articles.map { ($0.id, $0) })
+        queue = ids.compactMap { byID[$0] }
     }
 
     static var persistedQueueIDs: [String] {

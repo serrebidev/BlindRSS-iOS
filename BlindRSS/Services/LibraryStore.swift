@@ -45,29 +45,71 @@ final class LibraryStore {
         guard let url = URL(string: feed.url) else { return }
         do {
             let parsed = try await fetchFeed(at: url)
-            if !feed.titleIsCustom { feed.title = parsed.title }
-            feed.lastError = nil
-            feed.lastSuccessAt = Date()
-            feed.consecutiveFailures = 0
-            let added = merge(entries: parsed.entries, into: feed, in: context)
-            try context.save()
-            if added > 0 { Announcer.announce("\(feed.title): \(added) new articles.") }
+            apply(parsed: parsed, to: feed, in: context)
             await autoDownloadPodcasts(feed: feed)
         } catch {
-            feed.lastError = error.localizedDescription
-            feed.lastErrorAt = Date()
-            feed.consecutiveFailures += 1
-            try? context.save()
+            recordError(error, for: feed, in: context)
         }
     }
 
+    private func apply(parsed: ParsedFeed, to feed: Feed, in context: ModelContext) {
+        if !feed.titleIsCustom { feed.title = parsed.title }
+        feed.lastError = nil
+        feed.lastSuccessAt = Date()
+        feed.consecutiveFailures = 0
+        let added = merge(entries: parsed.entries, into: feed, in: context)
+        try? context.save()
+        if added > 0 { Announcer.announce("\(feed.title): \(added) new articles.") }
+    }
+
+    private func recordError(_ error: Error, for feed: Feed, in context: ModelContext) {
+        feed.lastError = error.localizedDescription
+        feed.lastErrorAt = Date()
+        feed.consecutiveFailures += 1
+        try? context.save()
+    }
+
+    /// Refresh-all fetches and parses up to 8 feeds at a time (desktop
+    /// max_concurrent_refreshes is 16; 8 keeps radio and CPU bursts low
+    /// on a phone), then merges one at a time on the main actor, since
+    /// ModelContext is not thread-safe. Previously this was one feed at
+    /// a time, so 698 feeds meant 698 sequential round trips.
     func refreshAll(feeds: [Feed], in context: ModelContext) async {
         var newTotal = 0
-        for feed in feeds {
-            let before = feed.articles.count
-            await refresh(feed: feed, in: context)
-            newTotal += max(0, feed.articles.count - before)
+        let jobs: [(Feed, URL)] = feeds.compactMap { feed in
+            URL(string: feed.url).map { (feed, $0) }
         }
+        await withTaskGroup(of: (String, Result<ParsedFeed, Error>).self) { group in
+            var index = 0
+            let window = 8
+            func enqueueNext() {
+                guard index < jobs.count else { return }
+                let (feed, url) = jobs[index]
+                index += 1
+                group.addTask { [session] in
+                    do {
+                        return (feed.id, .success(try await Self.fetchParsed(session: session, url: url)))
+                    } catch {
+                        return (feed.id, .failure(error))
+                    }
+                }
+            }
+            for _ in 0..<min(window, jobs.count) { enqueueNext() }
+            for await (feedID, result) in group {
+                if let feed = jobs.first(where: { $0.0.id == feedID })?.0 {
+                    let before = feed.articles.count
+                    switch result {
+                    case .success(let parsed):
+                        apply(parsed: parsed, to: feed, in: context)
+                    case .failure(let error):
+                        recordError(error, for: feed, in: context)
+                    }
+                    newTotal += max(0, feed.articles.count - before)
+                }
+                enqueueNext()
+            }
+        }
+        for feed in feeds { await autoDownloadPodcasts(feed: feed) }
         Announcer.announce("Refresh complete. \(newTotal) new articles.")
         if newTotal > 0, UserDefaults.standard.bool(forKey: "notificationsEnabled") {
             let content = UNMutableNotificationContent()
@@ -137,6 +179,12 @@ final class LibraryStore {
     // MARK: Fetching
 
     private func fetchFeed(at url: URL) async throws -> ParsedFeed {
+        try await Self.fetchParsed(session: session, url: url)
+    }
+
+    /// Network plus XML parsing off the main actor: parsing a large feed
+    /// used to block the UI thread for its whole duration.
+    nonisolated static func fetchParsed(session: URLSession, url: URL) async throws -> ParsedFeed {
         var request = URLRequest(url: url)
         request.setValue("BlindRSS-iOS/1.0", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 30
@@ -144,7 +192,9 @@ final class LibraryStore {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw LibraryError.httpStatus(http.statusCode)
         }
-        return try FeedParser.parse(data: data, sourceURL: url)
+        return try await Task.detached(priority: .userInitiated) {
+            try FeedParser.parse(data: data, sourceURL: url)
+        }.value
     }
 
     /// Inserts new entries, updates changed ones, respects delete tombstones.
@@ -155,11 +205,19 @@ final class LibraryStore {
         let tombstones = (try? context.fetch(FetchDescriptor<DeletedArticle>(
             predicate: #Predicate { $0.feedID == feedID }))) ?? []
         let tombstonedIDs = Set(tombstones.map(\.articleID))
+        // One dictionary build replaces a linear scan per entry: a feed
+        // with 2,000 stored articles and 100 new entries used to do
+        // 200,000 string comparisons per refresh.
+        var existingByID: [String: Article] = [:]
+        existingByID.reserveCapacity(feed.articles.count)
+        for article in feed.articles { existingByID[article.id] = article }
+        // Filter rules are fetched once per merge, not once per article.
+        let filterRules = (try? context.fetch(FetchDescriptor<FilterRule>(sortBy: [SortDescriptor(\.position)]))) ?? []
         var added = 0
         for entry in entries {
             let articleID = "\(feed.id):\(entry.guid)"
             if tombstonedIDs.contains(articleID) || tombstonedIDs.contains(entry.guid) { continue }
-            if let existing = feed.articles.first(where: { $0.id == articleID }) {
+            if let existing = existingByID[articleID] {
                 existing.title = entry.title
                 existing.content = entry.contentHTML.isEmpty ? (entry.summaryHTML ?? "") : entry.contentHTML
                 existing.summary = entry.summaryHTML
@@ -184,8 +242,9 @@ final class LibraryStore {
                 }
                 feed.articles.append(article)
                 context.insert(article)
+                existingByID[articleID] = article
                 added += 1
-                applyFilterRules(to: article, in: context)
+                applyFilterRules(rules: filterRules, to: article, in: context)
                 if let chapterURL = entry.chapterURL {
                     Task { await self.loadChapters(articleID: articleID, chapterURL: chapterURL, in: context) }
                 }
@@ -245,8 +304,7 @@ final class LibraryStore {
     }
 
     /// Desktop Filter Rules: mark read, favorite, or delete on arrival.
-    private func applyFilterRules(to article: Article, in context: ModelContext) {
-        let rules = (try? context.fetch(FetchDescriptor<FilterRule>(sortBy: [SortDescriptor(\.position)]))) ?? []
+    private func applyFilterRules(rules: [FilterRule], to article: Article, in context: ModelContext) {
         for rule in rules where rule.matches(article) {
             switch rule.action {
             case "favorite": article.isFavorite = true

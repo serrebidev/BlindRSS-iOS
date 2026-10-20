@@ -51,22 +51,28 @@ struct ContentView: View {
     /// Connects the player to SwiftData: resume positions, progress saves,
     /// finished episodes marked read, and the persisted play queue.
     private func wirePlaybackState() {
+        // Fetch the playback-state table once. The previous version
+        // fetched every row on each play and again on every 15-second
+        // progress save.
+        let states = (try? context.fetch(FetchDescriptor<PlaybackState>())) ?? []
+        var stateByID: [String: PlaybackState] = [:]
+        for state in states { stateByID[state.id] = state }
         player.resumeProvider = { id in
-            let states = (try? context.fetch(FetchDescriptor<PlaybackState>())) ?? []
-            guard let state = states.first(where: { $0.id == id }), !state.completed else { return nil }
+            guard let state = stateByID[id], !state.completed else { return nil }
             return (state.position, state.duration)
         }
         player.positionSaver = { id, position, duration, completed, title in
-            let states = (try? context.fetch(FetchDescriptor<PlaybackState>())) ?? []
-            if let existing = states.first(where: { $0.id == id }) {
+            if let existing = stateByID[id] {
                 existing.position = position
                 existing.duration = duration
                 existing.completed = completed
                 existing.updatedAt = Date()
                 existing.title = title
             } else {
-                context.insert(PlaybackState(id: id, position: position, duration: duration,
-                                             completed: completed, title: title))
+                let created = PlaybackState(id: id, position: position, duration: duration,
+                                            completed: completed, title: title)
+                context.insert(created)
+                stateByID[id] = created
             }
             try? context.save()
         }

@@ -38,9 +38,12 @@ struct ArticleListView: View {
         var result = feed != nil ? allArticles.filter { $0.feed?.id == feed?.id } : allArticles
         result = result.filter { selection.includes($0) }
         if !searchText.isEmpty {
+            // Raw content search only: stripping HTML for every article
+            // on every render was the list's biggest CPU cost.
             result = result.filter {
                 $0.title.localizedCaseInsensitiveContains(searchText)
-                    || HTMLText.plainText(from: $0.content).localizedCaseInsensitiveContains(searchText)
+                    || $0.content.localizedCaseInsensitiveContains(searchText)
+                    || $0.author.localizedCaseInsensitiveContains(searchText)
             }
         }
         switch mediaFilter {

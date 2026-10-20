@@ -26,6 +26,16 @@ struct FeedListView: View {
         Array(Set(feeds.map(\.category))).sorted()
     }
 
+    /// One pass over every article builds all unread counts. Rows used
+    /// to filter their feed's whole article list once per row render.
+    private var unreadByFeedID: [String: Int] {
+        var counts: [String: Int] = [:]
+        for feed in feeds {
+            counts[feed.id] = feed.articles.reduce(0) { $0 + ($1.isRead ? 0 : 1) }
+        }
+        return counts
+    }
+
     var body: some View {
         List {
             Section {
@@ -131,8 +141,8 @@ struct FeedListView: View {
             HStack {
                 Text(feed.title)
                 Spacer()
-                if feed.unreadCount > 0 {
-                    Text("\(feed.unreadCount)")
+                if (unreadByFeedID[feed.id] ?? 0) > 0 {
+                    Text("\(unreadByFeedID[feed.id] ?? 0)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -179,7 +189,8 @@ struct FeedListView: View {
 
     private func feedValue(_ feed: Feed) -> String {
         var parts: [String] = []
-        parts.append(feed.unreadCount > 0 ? "\(feed.unreadCount) unread" : "no unread")
+        let unread = unreadByFeedID[feed.id] ?? 0
+        parts.append(unread > 0 ? "\(unread) unread" : "no unread")
         if let error = feed.lastError { parts.append("Error: \(error)") }
         return parts.joined(separator: ", ")
     }

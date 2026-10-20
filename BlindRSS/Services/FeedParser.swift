@@ -6,13 +6,13 @@ import Foundation
 
 /// One parsed entry, format-neutral. Mirrors the fields the desktop local
 /// provider (providers/local.py) extracts from RSS, Atom, and JSON Feed.
-struct ParsedChapter: Equatable {
+struct ParsedChapter: Equatable, Sendable {
     var start: Double
     var title: String
     var href: String?
 }
 
-struct ParsedEntry: Equatable {
+struct ParsedEntry: Equatable, Sendable {
     var guid: String
     var title: String
     var link: String
@@ -29,7 +29,7 @@ struct ParsedEntry: Equatable {
     var inlineChapters: [ParsedChapter] = []
 }
 
-struct ParsedFeed: Equatable {
+struct ParsedFeed: Equatable, Sendable {
     var title: String
     var siteLink: String?
     var language: String?

@@ -10,8 +10,8 @@ import Foundation
 enum PodcastService {
     // MARK: Chapters (https://podcastindex.org/namespace/1.0#chapters)
 
-    struct ChaptersDocument: Decodable {
-        struct Item: Decodable {
+    struct ChaptersDocument: Decodable, Sendable {
+        struct Item: Decodable, Sendable {
             let startTime: Double
             let title: String?
             let url: String?
@@ -35,7 +35,7 @@ enum PodcastService {
 
     // MARK: Apple Podcasts search (iTunes Search API, no key required)
 
-    struct SearchResult: Decodable, Identifiable {
+    struct SearchResult: Decodable, Sendable, Identifiable {
         let collectionId: Int
         let collectionName: String?
         let artistName: String?
@@ -44,7 +44,7 @@ enum PodcastService {
         var title: String { collectionName ?? "Podcast" }
     }
 
-    private struct SearchResponse: Decodable { let results: [SearchResult] }
+    private struct SearchResponse: Decodable, Sendable { let results: [SearchResult] }
 
     static func parseSearchJSON(data: Data) throws -> [SearchResult] {
         try JSONDecoder().decode(SearchResponse.self, from: data).results.filter { $0.feedUrl != nil }
@@ -64,7 +64,7 @@ enum PodcastService {
 
     // MARK: Unified discovery (feeds and podcasts in one search)
 
-    struct FeedResult: Decodable, Identifiable {
+    struct FeedResult: Decodable, Sendable, Identifiable {
         let title: String
         let url: String
         let website: String?
@@ -85,8 +85,8 @@ enum PodcastService {
         return (try? parseGPodderJSON(data: data)) ?? []
     }
 
-    private struct FeedsearchResponse: Decodable {
-        struct Item: Decodable { let url: String; let title: String?; let favicon: String? }
+    private struct FeedsearchResponse: Decodable, Sendable {
+        struct Item: Decodable, Sendable { let url: String; let title: String?; let favicon: String? }
         let feeds: [Item]?
     }
 
@@ -109,9 +109,9 @@ enum PodcastService {
 
     // MARK: Wayback archive recovery
 
-    struct ArchiveAvailability: Decodable {
-        struct Snapshot: Decodable { let url: String?; let timestamp: String? }
-        struct Closest: Decodable { let closest: Snapshot? }
+    struct ArchiveAvailability: Decodable, Sendable {
+        struct Snapshot: Decodable, Sendable { let url: String?; let timestamp: String? }
+        struct Closest: Decodable, Sendable { let closest: Snapshot? }
         let archived_snapshots: Closest?
     }
 

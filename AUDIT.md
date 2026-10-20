@@ -63,6 +63,7 @@ Desktop keyboard commands map to iOS as follows: menus and buttons for sighted u
 - Casting: AirPlay route picker in the equalizer player and system player. Chromecast and DLNA need Google's Cast SDK and a Cast application id; that is the one desktop feature not ported, because it cannot ship without the owner's Cast credentials.
 - Notifications for new articles after refresh (Settings toggle), announcements for all major state changes.
 - Translations: not ported. The desktop catalogs are gettext files for 15 languages; iOS needs String Catalogs. English ships in 0.1.0.
+- CPU: see docs/CPU-AUDIT.md. OPML bulk import still subscribes one feed at a time; a subscribe-first-refresh-once fast path is future work.
 
 ## VoiceOver design (from the CVS Health techniques repo)
 

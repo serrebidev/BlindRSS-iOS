@@ -46,6 +46,7 @@ The full gesture guide is in [docs/VOICEOVER.md](docs/VOICEOVER.md). The short v
 - [AUDIT.md](AUDIT.md) — desktop audit, data model map, feature inventory, port plan, VoiceOver design rules, and open decisions.
 - [docs/VOICEOVER.md](docs/VOICEOVER.md) — complete VoiceOver gesture guide.
 - [CHANGELOG.md](CHANGELOG.md) — release notes by version.
+- [docs/CPU-AUDIT.md](docs/CPU-AUDIT.md) — CPU audit of Miniflux sync, refresh, and adding feeds, with the 0.1.1 fixes.
 
 ## Build (Mac required)
 
