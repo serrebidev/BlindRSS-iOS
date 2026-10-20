@@ -82,4 +82,4 @@ Episodes resume where you stopped, rewound ten seconds. Finished episodes are ma
 
 Lock-screen and headphone controls play, pause, skip, and seek without opening the app. In the player: Volume is a slider, Speed Presets sets speed directly, Sleep Timer stops playback after 15, 30, or 60 minutes or at the end of the episode, and chapters seek when focused.
 
-Find a Podcast in Add Feed searches Apple Podcasts; subscribing is one tap on a result. A feed's Podcast Archive action recovers older episodes from the Wayback Machine and downloads them in batches. Auto-download in Settings fetches new episodes after refresh, up to the limit you set.
+Search Feeds and Podcasts in Add Feed is one combined search: type a name to search Apple Podcasts and gPodder together, or paste a site URL to detect its feeds. Subscribing is one tap on a result. A feed's Podcast Archive action recovers older episodes from the Wayback Machine and downloads them in batches. Auto-download in Settings fetches new episodes after refresh, up to the limit you set.

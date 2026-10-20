@@ -104,6 +104,20 @@ final class PodcastServiceTests: XCTestCase {
         XCTAssertEqual(feed.entries[0].inlineChapters[1].start, 90)
     }
 
+    func testGPodderJSONParses() throws {
+        let json = #"[{"title":"Show","url":"https://example.com/feed","website":"https://example.com"}]"#
+        let results = try PodcastService.parseGPodderJSON(data: Data(json.utf8))
+        XCTAssertEqual(results.first?.title, "Show")
+        XCTAssertEqual(results.first?.id, "https://example.com/feed")
+    }
+
+    func testLooksLikeURL() {
+        XCTAssertTrue(PodcastService.looksLikeURL("https://example.com/blog"))
+        XCTAssertTrue(PodcastService.looksLikeURL("example.com"))
+        XCTAssertFalse(PodcastService.looksLikeURL("daily tech podcast"))
+        XCTAssertFalse(PodcastService.looksLikeURL("news"))
+    }
+
     func testTimestampParsing() {
         XCTAssertEqual(FeedParser.parseTimestamp("90"), 90)
         XCTAssertEqual(FeedParser.parseTimestamp("1:30"), 90)

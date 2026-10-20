@@ -22,7 +22,7 @@ You can also download the `.ipa` directly from [Releases](https://github.com/ser
 - All, Unread, Read, and Favorites views. Mark read and unread, mark all read, favorites, search, and delete with restore snapshots.
 - Per-feed error tracking with a Feeds with Errors view.
 - OPML import and export.
-- Podcasting fully supported, matching the desktop player: enclosure streaming and downloads, Podcasting 2.0 chapters from feeds, resume playback, persistent auto-advancing play queue, lock-screen controls, background audio, volume, speed presets, sleep timer, auto-download, Apple Podcasts search, and Wayback archive recovery with batch download.
+- Podcasting fully supported, matching the desktop player: enclosure streaming and downloads, Podcasting 2.0 chapters from feeds, resume playback, persistent auto-advancing play queue, lock-screen controls, background audio, volume, speed presets, sleep timer, auto-download, one combined Search Feeds and Podcasts (Apple Podcasts and gPodder by name, feed detection for pasted URLs), and Wayback archive recovery with batch download.
 - Feed refresh with VoiceOver announcements of new article counts.
 
 Also included: hosted providers (Miniflux, plus Inoreader, The Old Reader, and BazQux over the Google Reader API) in Settings, Online Account; Smart Folders; Filter Rules that mark read, favorite, or delete as articles arrive; a Deleted Articles view with restore; feed properties editing; full-text recovery; feed discovery from web page URLs; media downloads with an equalizer player (five-band EQ and silence skipping); YouTube articles with an embedded player and description chapters; AirPlay; and notifications for new articles.

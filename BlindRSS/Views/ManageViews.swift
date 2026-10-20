@@ -159,46 +159,91 @@ struct FilterRulesView: View {
     }
 }
 
-/// Find a Podcast (desktop Finding Podcasts): Apple Podcasts search.
-struct PodcastSearchView: View {
+/// Unified discovery (desktop Finding Podcasts, Detecting Feeds on a
+/// Page, and the podcast directories in one place). One search field:
+/// type a name to search Apple Podcasts and gPodder together, or paste
+/// a site or feed URL to detect its feeds via the page itself and
+/// feedsearch.dev. Every result subscribes with one tap.
+struct DiscoverView: View {
     @Environment(\.modelContext) private var context
     @State private var store = LibraryStore()
     @State private var query = ""
-    @State private var results: [PodcastService.SearchResult] = []
+    @State private var podcasts: [PodcastService.SearchResult] = []
+    @State private var feeds: [PodcastService.FeedResult] = []
     @State private var isSearching = false
+    @State private var hasSearched = false
 
     var body: some View {
         List {
-            ForEach(results) { result in
-                Button {
-                    Task {
-                        if let feedURL = result.feedUrl {
-                            _ = try? await store.addFeed(urlString: feedURL, in: context)
-                        }
+            if !podcasts.isEmpty {
+                Section {
+                    ForEach(podcasts) { result in
+                        subscribeButton(title: result.title, detail: result.artistName ?? "Podcast",
+                                        feedURL: result.feedUrl)
                     }
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(result.title)
-                        Text(result.artistName ?? "").font(.caption).foregroundStyle(.secondary)
+                } header: { Text("Podcasts").accessibilityAddTraits(.isHeader) }
+            }
+            if !feeds.isEmpty {
+                Section {
+                    ForEach(feeds) { result in
+                        subscribeButton(title: result.title, detail: result.website ?? "RSS feed",
+                                        feedURL: result.url)
                     }
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(result.title)
-                .accessibilityValue(result.artistName ?? "")
-                .accessibilityHint("Subscribes to this podcast.")
+                } header: { Text("Feeds").accessibilityAddTraits(.isHeader) }
+            }
+            if hasSearched, podcasts.isEmpty, feeds.isEmpty, !isSearching {
+                Text("No feeds or podcasts found.")
+                    .accessibilityLabel("No feeds or podcasts found.")
             }
         }
-        .searchable(text: $query, prompt: "Search podcasts")
-        .onSubmit(of: .search) {
-            Task {
-                isSearching = true
-                results = (try? await PodcastService.searchPodcasts(term: query)) ?? []
-                isSearching = false
-                Announcer.announce("\(results.count) podcasts found.")
-            }
-        }
+        .searchable(text: $query, prompt: "Search feeds and podcasts, or paste a URL")
+        .onSubmit(of: .search) { Task { await runSearch() } }
         .overlay { if isSearching { ProgressView("Searching").accessibilityLabel("Searching") } }
-        .navigationTitle("Find a Podcast")
+        .navigationTitle("Search Feeds and Podcasts")
+    }
+
+    private func subscribeButton(title: String, detail: String, feedURL: String?) -> some View {
+        Button {
+            Task {
+                if let feedURL { _ = try? await store.addFeed(urlString: feedURL, in: context) }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+        .accessibilityValue(detail)
+        .accessibilityHint("Subscribes to this feed.")
+    }
+
+    private func runSearch() async {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        isSearching = true
+        hasSearched = true
+        podcasts = []
+        feeds = []
+        if PodcastService.looksLikeURL(trimmed), let page = URL(string: trimmed.hasPrefix("http") ? trimmed : "https://\(trimmed)") {
+            // URL: page discovery plus feedsearch.dev, and try it AS a feed.
+            async let discovered = FullTextService.discoverFeeds(pageURL: page)
+            async let searched = PodcastService.searchFeedsearch(siteURL: page.absoluteString)
+            var found = await searched
+            for item in await discovered where !found.contains(where: { $0.url == item.url.absoluteString }) {
+                found.append(.init(title: item.title, url: item.url.absoluteString, website: page.absoluteString))
+            }
+            feeds = found
+        } else {
+            // Name: Apple Podcasts and gPodder together.
+            async let podcastResults = PodcastService.searchPodcasts(term: trimmed)
+            async let feedResults = PodcastService.searchFeeds(term: trimmed)
+            podcasts = (try? await podcastResults) ?? []
+            feeds = await feedResults
+        }
+        isSearching = false
+        Announcer.announce("\(podcasts.count + feeds.count) results found.")
     }
 }
 

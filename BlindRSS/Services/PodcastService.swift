@@ -62,6 +62,51 @@ enum PodcastService {
         return try parseSearchJSON(data: data)
     }
 
+    // MARK: Unified discovery (feeds and podcasts in one search)
+
+    struct FeedResult: Decodable, Identifiable {
+        let title: String
+        let url: String
+        let website: String?
+        var id: String { url }
+        enum CodingKeys: String, CodingKey { case title, url, website }
+    }
+
+    static func parseGPodderJSON(data: Data) throws -> [FeedResult] {
+        try JSONDecoder().decode([FeedResult].self, from: data)
+    }
+
+    /// gPodder search: RSS feeds and podcasts by name, no key required.
+    static func searchFeeds(term: String) async -> [FeedResult] {
+        var components = URLComponents(string: "https://gpodder.net/search.json")
+        components?.queryItems = [URLQueryItem(name: "q", value: term)]
+        guard let url = components?.url,
+              let (data, _) = try? await URLSession.shared.data(from: url) else { return [] }
+        return (try? parseGPodderJSON(data: data)) ?? []
+    }
+
+    private struct FeedsearchResponse: Decodable {
+        struct Item: Decodable { let url: String; let title: String?; let favicon: String? }
+        let feeds: [Item]?
+    }
+
+    /// feedsearch.dev: finds feeds for a site URL (desktop Feedsearch).
+    static func searchFeedsearch(siteURL: String) async -> [FeedResult] {
+        var components = URLComponents(string: "https://feedsearch.dev/api/v1/search")
+        components?.queryItems = [URLQueryItem(name: "url", value: siteURL)]
+        guard let url = components?.url,
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let decoded = try? JSONDecoder().decode(FeedsearchResponse.self, from: data) else { return [] }
+        return (decoded.feeds ?? []).map { FeedResult(title: $0.title ?? $0.url, url: $0.url, website: siteURL) }
+    }
+
+    /// True when the query looks like a URL rather than a name search.
+    static func looksLikeURL(_ query: String) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
+        return trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.contains(".")
+            && !trimmed.contains(" ")
+    }
+
     // MARK: Wayback archive recovery
 
     struct ArchiveAvailability: Decodable {

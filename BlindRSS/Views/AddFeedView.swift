@@ -51,10 +51,10 @@ struct AddFeedView: View {
             .navigationTitle("Add Feed")
             .toolbar {
                 ToolbarItem(placement: .secondaryAction) {
-                    NavigationLink { PodcastSearchView() } label: {
-                        Label("Find a Podcast", systemImage: "magnifyingglass")
+                    NavigationLink { DiscoverView() } label: {
+                        Label("Search Feeds and Podcasts", systemImage: "magnifyingglass")
                     }
-                    .accessibilityHint("Searches Apple Podcasts.")
+                    .accessibilityHint("Searches Apple Podcasts and gPodder by name, or finds feeds for a pasted URL.")
                 }
             }
             .toolbar {
