@@ -74,7 +74,8 @@ final class LibraryStore {
             content.body = "\(newTotal) new articles."
             content.sound = .default
             UNUserNotificationCenter.current().add(
-                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil),
+                withCompletionHandler: nil)
         }
     }
 
