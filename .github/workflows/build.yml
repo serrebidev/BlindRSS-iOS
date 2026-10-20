@@ -40,6 +40,16 @@ jobs:
         continue-on-error: true
         run: |
           git clone --depth 1 https://github.com/cvs-health/ios-swiftui-accessibility-techniques.git "$RUNNER_TEMP/cvs"
+
+      - name: a11y-check build cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cvs/a11y-check/.build
+          key: a11ycheck-${{ runner.os }}-v2
+
+      - name: Run a11y-check
+        continue-on-error: true
+        run: |
           cd "$RUNNER_TEMP/cvs/a11y-check" && swift build -c release 2>&1 | tail -3
           "$RUNNER_TEMP/cvs/a11y-check/.build/release/a11y-check" "$GITHUB_WORKSPACE/BlindRSS" | tee "$GITHUB_WORKSPACE/a11y-report.txt"
 
