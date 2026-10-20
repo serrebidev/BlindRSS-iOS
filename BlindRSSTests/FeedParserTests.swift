@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import XCTest
-@testable import BlindRSS
+
 
 final class FeedParserTests: XCTestCase {
     func testRSS20ParsesChannelItemsAndEnclosure() throws {
