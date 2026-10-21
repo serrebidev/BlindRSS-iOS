@@ -15,7 +15,6 @@ import UIKit
 /// Accessibility Value).
 struct MiniPlayerView: View {
     @Environment(AudioPlayer.self) private var player
-    @Environment(\.openURL) private var openURL
     @AppStorage("seekInterval") private var seekInterval = 30.0
     @State private var showingQueue = false
     /// Slider position while dragging; seeking every drag tick stalls AVPlayer.
@@ -31,7 +30,7 @@ struct MiniPlayerView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(player.currentTitle)
                     .font(.subheadline)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 Slider(value: Binding(get: { scrubTime ?? min(player.currentTime, max(player.duration, 1)) },
                                       set: { scrubTime = $0 }),
                        in: 0...max(player.duration, 1)) { editing in
@@ -40,11 +39,12 @@ struct MiniPlayerView: View {
                         self.scrubTime = nil
                     }
                 }
+                .accessibilityLabel("Position")
                 HStack {
                     Text(AudioPlayer.formatTime(player.currentTime))
                     Spacer()
                     if let chapterTitle {
-                        Text(chapterTitle).lineLimit(1)
+                        Text(chapterTitle).lineLimit(2)
                         Spacer()
                     }
                     Text(AudioPlayer.formatTime(player.duration))
@@ -112,7 +112,7 @@ struct MiniPlayerView: View {
                     Button { player.jumpChapter(by: -1) } label: { Label("Previous Chapter", systemImage: "backward.end") }
                     Button { player.jumpChapter(by: 1) } label: { Label("Next Chapter", systemImage: "forward.end") }
                     if let chapterIndex, let href = chapters[chapterIndex].href, let url = URL(string: href) {
-                        Button { openURL(url) } label: { Label("Open Chapter Link", systemImage: "link") }
+                        Link(destination: url) { Label("Open Chapter Link", systemImage: "link") }
                     }
                     Section("Chapters") {
                         ForEach(Array(chapters.enumerated()), id: \.element.id) { index, chapter in
