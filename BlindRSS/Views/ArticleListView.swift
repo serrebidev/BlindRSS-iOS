@@ -282,10 +282,11 @@ private struct ArticleRow: View {
 
 // MARK: - Article actions order
 
-/// Article row actions, in the order VoiceOver offers them. Open in Browser
-/// and Download come first by default; Settings, Article Actions reorders.
+/// Article row actions, in the order VoiceOver offers them. Open in Browser,
+/// Download, and Copy Link come first by default; Settings, Article Actions
+/// reorders.
 enum ArticleAction: String, CaseIterable, Identifiable {
-    case openInBrowser, download, read, toggleRead, favorite, play, addToQueue, copyLink, share, delete
+    case openInBrowser, download, copyLink, read, toggleRead, favorite, play, addToQueue, share, delete
 
     static let storageKey = "articleActionOrder"
 

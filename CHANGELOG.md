@@ -7,7 +7,7 @@
 - When the app is closed, iOS Background App Refresh refreshes on the same schedule. iOS picks the exact time: never sooner than the interval, often later, and not at all if Background App Refresh is off for BlindRSS. New articles raise a notification when Notifications for new articles is on.
 - Fix Refresh on startup. The setting was saved but never used, so the app did not refresh when it opened.
 - Only one Refresh All runs at a time. Pulling to refresh during an automatic refresh says "Refresh already in progress." instead of fetching every feed twice.
-- Article actions now start with Open in Browser, then Download Media. The order can be changed in Settings, Article Actions, with Move Up, Move Down, and Move to Top on each action, dragging in Edit mode, and Reset to Default Order.
+- Article actions now start with Open in Browser, then Download Media, then Copy Link. The order can be changed in Settings, Article Actions, with Move Up, Move Down, and Move to Top on each action, dragging in Edit mode, and Reset to Default Order.
 - Share is now a VoiceOver action too, matching the touch swipe. Play, Add to Play Queue, and Download Media only appear on articles with audio.
 
 ## 0.1.6
