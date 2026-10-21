@@ -4,6 +4,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// Feed and folder list (desktop feed tree). Swipe actions for touch are
 /// mirrored as VoiceOver custom actions on the same rows, and hints are
@@ -53,6 +54,42 @@ struct FeedListView: View {
         // Rows are tagged, not buttons: List selection is what makes the
         // split view open the article list on iPhone.
         List(selection: $selection) {
+            if isPhone {
+                // iPhone: large Add Feed and More buttons first, then the
+                // Feeds heading, so both come before it for VoiceOver and
+                // are easy to hit. The navigation bar is hidden here.
+                Section {
+                    HStack(spacing: 12) {
+                        Button {
+                            showingAddFeed = true
+                        } label: {
+                            Label("Add Feed", systemImage: "plus")
+                                .frame(maxWidth: .infinity, minHeight: 52)
+                        }
+                        .accessibilityFocused($addButtonFocused)
+                        .accessibilityHint("Opens the add feed form.")
+                        .keyboardShortcut("n", modifiers: .command)
+                        Menu {
+                            refreshAllButton
+                            settingsButton
+                        } label: {
+                            Label("More", systemImage: "ellipsis.circle")
+                                .frame(maxWidth: .infinity, minHeight: 52)
+                        }
+                        .menuStyle(.button)
+                        .accessibilityHint("Refresh All and Settings.")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .font(.title3)
+                    Text("Feeds")
+                        .font(.largeTitle.bold())
+                        .accessibilityAddTraits(.isHeader)
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+
             Section {
                 ForEach(LibrarySelection.allCases) { view in
                     Label(view.title, systemImage: view.systemImage)
@@ -92,28 +129,10 @@ struct FeedListView: View {
                 .accessibilityHint("Opens the add feed form.")
                 .keyboardShortcut("n", modifiers: .command)
             }
-            ToolbarItem(placement: .secondaryAction) {
-                Button {
-                    Task {
-                        isRefreshing = true
-                        await store.refreshAll(feeds: feeds, in: context)
-                        isRefreshing = false
-                    }
-                } label: {
-                    Label("Refresh All", systemImage: "arrow.clockwise")
-                }
-                .disabled(isRefreshing)
-                .accessibilityHint("Fetches new articles from every feed.")
-                .keyboardShortcut("r", modifiers: .command)
-            }
-            ToolbarItem(placement: .secondaryAction) {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label("Settings", systemImage: "gear")
-                }
-            }
+            ToolbarItem(placement: .secondaryAction) { refreshAllButton }
+            ToolbarItem(placement: .secondaryAction) { settingsButton }
         }
+        .toolbar(isPhone ? .hidden : .automatic, for: .navigationBar)
         .sheet(isPresented: $showingAddFeed, onDismiss: { addButtonFocused = true }) {
             AddFeedView()
         }
@@ -125,6 +144,33 @@ struct FeedListView: View {
         }
         .sheet(item: $archiveFeed) { feed in
             NavigationStack { PodcastArchiveView(feed: feed) }
+        }
+    }
+
+    /// iPad keeps the toolbar: hiding the sidebar's bar there would also
+    /// hide the sidebar button.
+    private var isPhone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
+
+    private var refreshAllButton: some View {
+        Button {
+            Task {
+                isRefreshing = true
+                await store.refreshAll(feeds: feeds, in: context)
+                isRefreshing = false
+            }
+        } label: {
+            Label("Refresh All", systemImage: "arrow.clockwise")
+        }
+        .disabled(isRefreshing)
+        .accessibilityHint("Fetches new articles from every feed.")
+        .keyboardShortcut("r", modifiers: .command)
+    }
+
+    private var settingsButton: some View {
+        Button {
+            showingSettings = true
+        } label: {
+            Label("Settings", systemImage: "gear")
         }
     }
 

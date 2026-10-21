@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- On iPhone, Add Feed and More are now large buttons at the top of the feed list, before the Feeds heading, so VoiceOver reaches them first and they are easier to tap. More holds Refresh All and Settings. iPad keeps them in the sidebar toolbar.
+
 ## 0.1.9
 
 - The mini player now starts compact, one row high: the episode title and time, Back, Play or Pause, and Forward. Before, it took about a fifth of an iPhone screen on every view, and more while typing a search. All player controls, at the end of the row, shows every control as before: Stop, speed, chapters, AirPlay, and More player controls. Fewer player controls shrinks it again, and the app remembers the choice. Swiping up or down on the title still seeks, and the two-finger double tap still plays and pauses.
