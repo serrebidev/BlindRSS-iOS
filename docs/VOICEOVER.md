@@ -59,7 +59,7 @@ The player is the mini player bar at the bottom of the screen. It has every cont
 - Chapters: swipe up or down for the next or previous chapter. Double tap for Previous Chapter, Next Chapter, Open Chapter Link, and the chapter list.
 - AirPlay and output devices.
 - More player controls: Equalizer, Skip Silence, Volume Up and Volume Down in 5 percent steps, Play Next in Queue, Play Previous in Queue, Open Play Queue, and Sleep Timer.
-- Equalizer: the desktop's ten bands from 31.25 Hz to 16 kHz plus a preamp, each a slider from -20 to +20 decibels (swipe up or down). Preset applies one of the desktop's built-in presets or one you saved. Save as Preset names the current levels, and Delete Preset removes a saved one. Moving a slider turns the equalizer on. It works on streamed and downloaded episodes.
+- Equalizer: the desktop's ten bands from 31.25 Hz to 16 kHz plus a preamp, each a slider from -20 to +20 decibels (swipe up or down). Preset applies one of the desktop's built-in presets or one you saved. Type a Preset name, then Save as Preset saves the current levels. Delete Preset removes a saved one. Moving a slider turns the equalizer on. It works on streamed and downloaded episodes.
 - Skip Silence, on by default as on the desktop, plays quickly through quiet parts of 0.7 seconds or more, on streamed and downloaded episodes.
 - Play Queue: remove an item, play it now, or move it up or down from its actions. Clear Queue is in the toolbar.
 

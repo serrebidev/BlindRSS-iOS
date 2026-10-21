@@ -209,9 +209,7 @@ struct MiniPlayerView: View {
 struct EqualizerView: View {
     @Environment(AudioPlayer.self) private var player
     @Environment(\.dismiss) private var dismiss
-    @State private var savingPreset = false
     @State private var presetName = ""
-    @AccessibilityFocusState private var saveButtonFocused: Bool
 
     var body: some View {
         let isUserPreset = player.userPresets.contains { $0.name == player.equalizer.preset }
@@ -242,11 +240,16 @@ struct EqualizerView: View {
                         LabeledContent("Preset", value: player.equalizer.preset ?? "Custom")
                     }
                     .accessibilityHint("Applies a set of band levels.")
+                    Text("Preset name")
+                        .accessibilityHidden(true)
+                    TextField("Preset name", text: $presetName)
+                        .accessibilityLabel("Preset name")
                     Button("Save as Preset") {
-                        presetName = player.equalizer.preset ?? ""
-                        savingPreset = true
+                        player.saveUserPreset(named: presetName)
+                        presetName = ""
                     }
-                    .accessibilityFocused($saveButtonFocused)
+                    .disabled(presetName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .accessibilityHint("Saves the current levels under the preset name.")
                     if isUserPreset, let name = player.equalizer.preset {
                         Button("Delete Preset \(name)", role: .destructive) { player.deleteUserPreset(named: name) }
                     }
@@ -275,17 +278,6 @@ struct EqualizerView: View {
                     Button("Done") { dismiss() }
                         .accessibilityLabel("Done with Equalizer")
                 }
-            }
-            // Focus returns to Save as Preset when the alert closes.
-            .alert("Save Preset", isPresented: $savingPreset) {
-                TextField("Preset name", text: $presetName, prompt: Text("Name"))
-                Button("Save") {
-                    player.saveUserPreset(named: presetName)
-                    saveButtonFocused = true
-                }
-                Button("Cancel", role: .cancel) { saveButtonFocused = true }
-            } message: {
-                Text("Preset name for the current levels.")
             }
         }
     }
