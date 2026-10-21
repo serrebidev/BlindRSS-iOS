@@ -31,7 +31,7 @@ Not ported: Chromecast and DLNA casting (needs Google's Cast SDK and a Cast appl
 
 ## VoiceOver
 
-Every touch swipe action is duplicated as a VoiceOver action on the same row. Articles offer Read, Mark Read or Unread, Favorite, Play, Add to Play Queue, Open in Browser, and Delete. Feeds offer Open, Refresh, Mark All Read, and Delete.
+Every touch swipe action is duplicated as a VoiceOver action on the same row. Articles offer Open in Browser, Download Media, Read, Mark Read or Unread, Favorite, Play, Add to Play Queue, Copy Link, Share, and Delete, in an order you can change in Settings, Article Actions. Feeds offer Open, Refresh, Mark All Read, and Delete.
 
 The full gesture guide is in [docs/VOICEOVER.md](docs/VOICEOVER.md). The short version:
 

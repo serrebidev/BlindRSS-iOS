@@ -171,6 +171,7 @@ struct SettingsView: View {
                     NavigationLink { FilterRulesView() } label: { Label("Filter Rules", systemImage: "line.3.horizontal.decrease") }
                     NavigationLink { DeletedArticlesView() } label: { Label("Deleted Articles", systemImage: "trash") }
                     NavigationLink { DownloadsView() } label: { Label("Downloads", systemImage: "arrow.down.circle") }
+                    NavigationLink { ArticleActionOrderView() } label: { Label("Article Actions", systemImage: "list.number") }
                     Toggle("Notifications for new articles", isOn: $notificationsEnabled)
                         .accessibilityHint("Posts a notification after a refresh finds new articles.")
                         .onChange(of: notificationsEnabled) { _, enabled in

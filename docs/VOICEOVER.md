@@ -77,7 +77,7 @@ On iPad or Mac with a physical keyboard: Command-N adds a feed, Command-R refres
 
 ## More actions in 0.1.0
 
-Article actions also include Copy Link and Download Media. Downloaded episodes play offline. In Settings, Downloads lists them; double tap one to play it in the mini player.
+Article actions start with Open in Browser and Download Media, then Read, Mark Read or Unread, Favorite, Play, Add to Play Queue, Copy Link, Share, and Delete. Media actions only appear on articles with audio. To change the order, open Settings, Article Actions: each action has Move Up, Move Down, and Move to Top actions, Edit allows dragging, and Reset to Default Order restores it. Downloaded episodes play offline. In Settings, Downloads lists them; double tap one to play it in the mini player.
 
 Settings also contains: Online Account (Miniflux, Inoreader, The Old Reader, BazQux sync), Smart Folders, Filter Rules, and Deleted Articles, where Restore and Delete Permanently are row actions. Feed rows include Edit Feed for renaming and recategorizing.
 

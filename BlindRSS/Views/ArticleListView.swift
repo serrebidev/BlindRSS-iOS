@@ -29,6 +29,7 @@ struct ArticleListView: View {
     /// Desktop article filters and sorting (Ctrl+1..6 views, Sort menu).
     @State private var mediaFilter = "all"
     @State private var sortNewestFirst = true
+    @AppStorage(ArticleAction.storageKey) private var storedActionOrder = ""
 
     let selection: LibrarySelection
     let feed: Feed?
@@ -61,6 +62,8 @@ struct ArticleListView: View {
 
     var body: some View {
         let articles = filteredArticles()
+        // Parsed once per render and shared by every row.
+        let actionOrder = ArticleAction.order(from: storedActionOrder)
         Group {
             if articles.isEmpty {
                 ContentUnavailableView("No Articles", systemImage: "doc.text",
@@ -69,7 +72,7 @@ struct ArticleListView: View {
                 // Rows are tagged, not buttons, so the list selection
                 // pushes the reader on iPhone.
                 List(articles, selection: $selectedArticle) { article in
-                    ArticleRow(article: article) {
+                    ArticleRow(article: article, actionOrder: actionOrder) {
                         selectedArticle = article
                     }
                     .tag(article)
@@ -146,6 +149,7 @@ private struct ArticleRow: View {
     @State private var showingShare = false
 
     let article: Article
+    let actionOrder: [ArticleAction]
     let onOpen: () -> Void
 
     var body: some View {
@@ -209,36 +213,51 @@ private struct ArticleRow: View {
                 showingShare = true
             } label: { Label("Share", systemImage: "square.and.arrow.up") }
         }
-        // VoiceOver custom actions: identical set, Label icons included for
+        // VoiceOver custom actions: the touch set plus more, in the order
+        // chosen in Settings, Article Actions. Label icons are included for
         // Switch Control and Voice Control ("Show actions for ...").
-        .accessibilityAction { onOpen() } label: { Label("Read", systemImage: "doc.text") }
-        .accessibilityAction {
-            store.setRead(article, read: !article.isRead, in: context)
-        } label: { Label(article.isRead ? "Mark Unread" : "Mark Read",
-                         systemImage: article.isRead ? "envelope.badge" : "envelope.open") }
-        .accessibilityAction {
-            store.toggleFavorite(article, in: context)
-        } label: { Label(article.isFavorite ? "Remove Favorite" : "Favorite", systemImage: "star") }
-        .accessibilityAction {
-            if article.hasMedia { player.play(article: article) }
-        } label: { Label("Play", systemImage: "play.fill") }
-        .accessibilityAction {
-            if article.hasMedia { player.enqueue(article) }
-        } label: { Label("Add to Play Queue", systemImage: "list.bullet") }
-        .accessibilityAction {
-            if let url = URL(string: article.url) { openURL(url) }
-        } label: { Label("Open in Browser", systemImage: "safari") }
-        .accessibilityAction {
+        .accessibilityActions {
+            ForEach(actionOrder) { action in
+                if let label = label(for: action) {
+                    Button { perform(action) } label: { Label(label, systemImage: action.systemImage) }
+                }
+            }
+        }
+        .shareSheet(isPresented: $showingShare, urlString: article.url)
+    }
+
+    /// The action's name for this article, or nil when it does not apply
+    /// (media actions on an article without audio, links without a URL).
+    private func label(for action: ArticleAction) -> String? {
+        switch action {
+        case .openInBrowser, .copyLink, .share:
+            return URL(string: article.url) == nil ? nil : action.title
+        case .download, .play, .addToQueue:
+            return article.hasMedia ? action.title : nil
+        case .toggleRead:
+            return article.isRead ? "Mark Unread" : "Mark Read"
+        case .favorite:
+            return article.isFavorite ? "Remove Favorite" : "Favorite"
+        case .read, .delete:
+            return action.title
+        }
+    }
+
+    private func perform(_ action: ArticleAction) {
+        switch action {
+        case .openInBrowser: if let url = URL(string: article.url) { openURL(url) }
+        case .download: Task { try? await DownloadService.download(article: article) }
+        case .read: onOpen()
+        case .toggleRead: store.setRead(article, read: !article.isRead, in: context)
+        case .favorite: store.toggleFavorite(article, in: context)
+        case .play: player.play(article: article)
+        case .addToQueue: player.enqueue(article)
+        case .copyLink:
             UIPasteboard.general.string = article.url
             Announcer.announce("Link copied.")
-        } label: { Label("Copy Link", systemImage: "doc.on.doc") }
-        .accessibilityAction {
-            Task { try? await DownloadService.download(article: article) }
-        } label: { Label("Download Media", systemImage: "arrow.down.circle") }
-        .accessibilityAction {
-            store.deleteArticle(article, in: context)
-        } label: { Label("Delete", systemImage: "trash") }
-        .shareSheet(isPresented: $showingShare, urlString: article.url)
+        case .share: showingShare = true
+        case .delete: store.deleteArticle(article, in: context)
+        }
     }
 
     private var statusImage: String {
@@ -258,6 +277,114 @@ private struct ArticleRow: View {
         if article.isFavorite { parts.append("favorite") }
         if article.hasMedia { parts.append("has audio") }
         return parts.joined(separator: ", ")
+    }
+}
+
+// MARK: - Article actions order
+
+/// Article row actions, in the order VoiceOver offers them. Open in Browser
+/// and Download come first by default; Settings, Article Actions reorders.
+enum ArticleAction: String, CaseIterable, Identifiable {
+    case openInBrowser, download, read, toggleRead, favorite, play, addToQueue, copyLink, share, delete
+
+    static let storageKey = "articleActionOrder"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .openInBrowser: return "Open in Browser"
+        case .download: return "Download Media"
+        case .read: return "Read"
+        case .toggleRead: return "Mark Read or Unread"
+        case .favorite: return "Favorite"
+        case .play: return "Play"
+        case .addToQueue: return "Add to Play Queue"
+        case .copyLink: return "Copy Link"
+        case .share: return "Share"
+        case .delete: return "Delete"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .openInBrowser: return "safari"
+        case .download: return "arrow.down.circle"
+        case .read: return "doc.text"
+        case .toggleRead: return "envelope.open"
+        case .favorite: return "star"
+        case .play: return "play.fill"
+        case .addToQueue: return "list.bullet"
+        case .copyLink: return "doc.on.doc"
+        case .share: return "square.and.arrow.up"
+        case .delete: return "trash"
+        }
+    }
+
+    /// The saved order. Unknown names are dropped and actions added in a
+    /// later version go at the end, so an old setting never hides one.
+    static func order(from stored: String) -> [ArticleAction] {
+        var order: [ArticleAction] = []
+        for name in stored.split(separator: ",") {
+            if let action = ArticleAction(rawValue: String(name)), !order.contains(action) { order.append(action) }
+        }
+        return order + allCases.filter { !order.contains($0) }
+    }
+
+    static func stored(_ order: [ArticleAction]) -> String {
+        order.map(\.rawValue).joined(separator: ",")
+    }
+}
+
+/// Settings, Article Actions: the order of the article actions VoiceOver
+/// offers. Reorder by dragging in Edit mode, or with each row's Move actions.
+struct ArticleActionOrderView: View {
+    @AppStorage(ArticleAction.storageKey) private var stored = ""
+
+    var body: some View {
+        let order = ArticleAction.order(from: stored)
+        List {
+            Section {
+                ForEach(Array(order.enumerated()), id: \.element) { index, action in
+                    Label(action.title, systemImage: action.systemImage)
+                        .accessibilityLabel("\(action.title), \(index + 1) of \(order.count)")
+                        .accessibilityHint("Shows move actions.")
+                        .accessibilityAction { move(action, to: index - 1, in: order) } label: {
+                            Label("Move Up", systemImage: "arrow.up")
+                        }
+                        .accessibilityAction { move(action, to: index + 1, in: order) } label: {
+                            Label("Move Down", systemImage: "arrow.down")
+                        }
+                        .accessibilityAction { move(action, to: 0, in: order) } label: {
+                            Label("Move to Top", systemImage: "arrow.up.to.line")
+                        }
+                }
+                .onMove { source, destination in
+                    var reordered = order
+                    reordered.move(fromOffsets: source, toOffset: destination)
+                    stored = ArticleAction.stored(reordered)
+                }
+            } footer: {
+                Text("VoiceOver offers article actions in this order. Actions that do not apply to an article, such as Play on an article without audio, are left out.")
+            }
+            Section {
+                Button("Reset to Default Order") {
+                    stored = ""
+                    Announcer.announce("Default order restored.")
+                }
+            }
+        }
+        .navigationTitle("Article Actions")
+        .toolbar { EditButton() }
+    }
+
+    private func move(_ action: ArticleAction, to target: Int, in order: [ArticleAction]) {
+        guard order.indices.contains(target), let index = order.firstIndex(of: action), index != target else { return }
+        var reordered = order
+        reordered.remove(at: index)
+        reordered.insert(action, at: target)
+        stored = ArticleAction.stored(reordered)
+        Announcer.announce("\(action.title) moved to position \(target + 1).")
     }
 }
 
