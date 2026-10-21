@@ -58,7 +58,9 @@ The player is the mini player bar at the bottom of the screen. It has every cont
 - Playback speed: swipe up or down to change speed by a tenth, from half speed to four times speed. Double tap for Faster, Slower, Normal Speed, and presets.
 - Chapters: swipe up or down for the next or previous chapter. Double tap for Previous Chapter, Next Chapter, Open Chapter Link, and the chapter list.
 - AirPlay and output devices.
-- More player controls: Volume Up and Volume Down in 5 percent steps, Play Next in Queue, Play Previous in Queue, Open Play Queue, and Sleep Timer.
+- More player controls: Equalizer, Skip Silence, Volume Up and Volume Down in 5 percent steps, Play Next in Queue, Play Previous in Queue, Open Play Queue, and Sleep Timer.
+- Equalizer: the desktop's ten bands from 31.25 Hz to 16 kHz plus a preamp, each a slider from -20 to +20 decibels (swipe up or down). Preset applies one of the desktop's built-in presets or one you saved. Save as Preset names the current levels, and Delete Preset removes a saved one. Moving a slider turns the equalizer on. It works on streamed and downloaded episodes.
+- Skip Silence, on by default as on the desktop, plays quickly through quiet parts of 0.7 seconds or more, on streamed and downloaded episodes.
 - Play Queue: remove an item, play it now, or move it up or down from its actions. Clear Queue is in the toolbar.
 
 State changes are announced: refresh results with new article counts, marked as read, added to favorites, deleted, added to the play queue, playing, paused, and playback failures. You do not need to hunt for a status bar.
@@ -75,7 +77,7 @@ On iPad or Mac with a physical keyboard: Command-N adds a feed, Command-R refres
 
 ## More actions in 0.1.0
 
-Article actions also include Copy Link and Download Media. Downloaded episodes play offline. In Settings, Downloads opens the equalizer player: five EQ bands are sliders (focus one and swipe up or down), Skip silence is a toggle, and the AirPlay picker chooses output devices.
+Article actions also include Copy Link and Download Media. Downloaded episodes play offline. In Settings, Downloads lists them; double tap one to play it in the mini player.
 
 Settings also contains: Online Account (Miniflux, Inoreader, The Old Reader, BazQux sync), Smart Folders, Filter Rules, and Deleted Articles, where Restore and Delete Permanently are row actions. Feed rows include Edit Feed for renaming and recategorizing.
 

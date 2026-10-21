@@ -407,8 +407,10 @@ struct FeedEditView: View {
     }
 }
 
-/// Downloads list (desktop Downloading Media) with the equalizer player.
+/// Downloads list (desktop Downloading Media). Downloads play in the mini
+/// player, which has the equalizer and silence skipping for every episode.
 struct DownloadsView: View {
+    @Environment(AudioPlayer.self) private var player
     // Only rows with a download: this used to load every article and
     // check the disk for each one, twice per render.
     @Query(filter: #Predicate<Article> { $0.localFileName != nil },
@@ -422,56 +424,13 @@ struct DownloadsView: View {
                                        description: Text("Download an episode from an article to listen offline."))
             } else {
                 List(downloaded) { article in
-                    NavigationLink(article.title) {
-                        if let url = DownloadService.localURL(for: article) {
-                            EnginePlayerView(fileURL: url, title: article.title)
-                        }
-                    }
-                    .accessibilityLabel(article.title)
-                    .accessibilityHint("Opens the equalizer player for this download.")
+                    Button(article.title) { player.play(article: article) }
+                        .frame(minHeight: 44)
+                        .accessibilityHint("Plays this download in the player.")
                 }
             }
         }
         .navigationTitle("Downloads")
-    }
-}
-
-/// Equalizer player for a downloaded file (desktop Equalizer).
-struct EnginePlayerView: View {
-    @State private var engine = EnginePlayer()
-    let fileURL: URL
-    let title: String
-    private let bandNames = ["60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz"]
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Text(title).font(.title3.bold()).accessibilityAddTraits(.isHeader)
-                Button { engine.togglePlayPause() } label: {
-                    Label(engine.isPlaying ? "Pause" : "Play", systemImage: engine.isPlaying ? "pause.fill" : "play.fill")
-                }
-                .buttonStyle(.borderedProminent).frame(minHeight: 44)
-                .accessibilityHint("Plays this download through the equalizer.")
-
-                Text("Equalizer").font(.headline).accessibilityAddTraits(.isHeader)
-                ForEach(0..<5, id: \.self) { index in
-                    VStack(alignment: .leading) {
-                        Text("\(bandNames[index]): \(Int(engine.bandGains[index])) dB")
-                        Slider(value: Binding(get: { engine.bandGains[index] }, set: { engine.bandGains[index] = $0 }), in: -12...12, step: 1)
-                            .accessibilityLabel("\(bandNames[index]) gain")
-                            .accessibilityValue("\(Int(engine.bandGains[index])) decibels")
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-                Toggle("Skip silence", isOn: $engine.skipSilence)
-                    .accessibilityHint("Jumps over quiet parts of the download.")
-                AirPlayRouteView().frame(width: 44, height: 44).accessibilityLabel("AirPlay and output devices")
-            }
-            .padding()
-        }
-        .navigationTitle("Equalizer Player")
-        .onAppear { if engine.currentTitle.isEmpty { engine.play(fileURL: fileURL, title: title) } }
-        .onDisappear { engine.stop() }
     }
 }
 

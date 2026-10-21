@@ -17,6 +17,7 @@ struct MiniPlayerView: View {
     @Environment(AudioPlayer.self) private var player
     @AppStorage("seekInterval") private var seekInterval = 30.0
     @State private var showingQueue = false
+    @State private var showingEqualizer = false
     /// Slider position while dragging; seeking every drag tick stalls AVPlayer.
     @State private var scrubTime: Double?
 
@@ -144,6 +145,12 @@ struct MiniPlayerView: View {
                     .accessibilityLabel("AirPlay and output devices")
 
                 Menu {
+                    Section("Sound") {
+                        Button { showingEqualizer = true } label: { Label("Equalizer", systemImage: "slider.vertical.3") }
+                        Toggle(isOn: Binding(get: { player.skipSilence }, set: { player.skipSilence = $0 })) {
+                            Label("Skip Silence", systemImage: "waveform.badge.minus")
+                        }
+                    }
                     Section("Volume \(Int((player.volume * 100).rounded())) percent") {
                         Button { player.adjustVolume(by: 0.05) } label: { Label("Volume Up", systemImage: "speaker.wave.3") }
                         Button { player.adjustVolume(by: -0.05) } label: { Label("Volume Down", systemImage: "speaker.wave.1") }
@@ -167,7 +174,7 @@ struct MiniPlayerView: View {
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .accessibilityLabel("More player controls")
-                .accessibilityHint("Volume, play queue, and sleep timer.")
+                .accessibilityHint("Equalizer, skip silence, volume, play queue, and sleep timer.")
             }
         }
         .padding(.horizontal, 8)
@@ -175,6 +182,9 @@ struct MiniPlayerView: View {
         .background(.bar)
         .sheet(isPresented: $showingQueue) {
             PlayQueueView()
+        }
+        .sheet(isPresented: $showingEqualizer) {
+            EqualizerView()
         }
     }
 
@@ -190,6 +200,112 @@ struct MiniPlayerView: View {
     private func symbol(_ base: String, _ seconds: Int) -> String {
         let named = "\(base).\(seconds)"
         return UIImage(systemName: named) != nil ? named : base
+    }
+}
+
+/// Equalizer (desktop Open Equalizer, Ctrl+Shift+E): on or off, presets
+/// (libVLC's built-in list plus saved ones), preamp, and ten bands. It
+/// shapes streamed and downloaded episodes alike.
+struct EqualizerView: View {
+    @Environment(AudioPlayer.self) private var player
+    @Environment(\.dismiss) private var dismiss
+    @State private var savingPreset = false
+    @State private var presetName = ""
+
+    var body: some View {
+        let isUserPreset = player.userPresets.contains { $0.name == player.equalizer.preset }
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle("Equalizer", isOn: Binding(get: { player.equalizer.enabled },
+                                                      set: { player.equalizer.enabled = $0 }))
+                    Toggle("Skip Silence", isOn: Binding(get: { player.skipSilence }, set: { player.skipSilence = $0 }))
+                        .accessibilityHint("Plays quickly through silent parts of episodes.")
+                }
+
+                Section {
+                    Menu {
+                        Section("Built-in") {
+                            ForEach(EqualizerPreset.builtIn, id: \.name) { preset in
+                                presetButton(preset)
+                            }
+                        }
+                        if !player.userPresets.isEmpty {
+                            Section("Saved") {
+                                ForEach(player.userPresets, id: \.name) { preset in
+                                    presetButton(preset)
+                                }
+                            }
+                        }
+                    } label: {
+                        LabeledContent("Preset", value: player.equalizer.preset ?? "Custom")
+                    }
+                    .accessibilityHint("Applies a set of band levels.")
+                    Button("Save as Preset") {
+                        presetName = player.equalizer.preset ?? ""
+                        savingPreset = true
+                    }
+                    if isUserPreset, let name = player.equalizer.preset {
+                        Button("Delete Preset \(name)", role: .destructive) { player.deleteUserPreset(named: name) }
+                    }
+                    Button("Reset to Flat") {
+                        player.applyPreset(EqualizerPreset.builtIn[0])
+                    }
+                } header: {
+                    Text("Presets").accessibilityAddTraits(.isHeader)
+                }
+
+                Section {
+                    gainSlider("Preamp", value: Binding(get: { player.equalizer.preamp },
+                                                        set: { value in edit { $0.preamp = value } }))
+                    ForEach(EqualizerSettings.frequencies.indices, id: \.self) { index in
+                        gainSlider(EqualizerSettings.label(for: EqualizerSettings.frequencies[index]),
+                                   value: Binding(get: { player.equalizer.bands[index] },
+                                                  set: { value in edit { $0.bands[index] = value } }))
+                    }
+                } header: {
+                    Text("Bands").accessibilityAddTraits(.isHeader)
+                }
+            }
+            .navigationTitle("Equalizer")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .alert("Save Preset", isPresented: $savingPreset) {
+                TextField("Preset name", text: $presetName)
+                Button("Save") { player.saveUserPreset(named: presetName) }
+                Button("Cancel", role: .cancel) {}
+            }
+        }
+    }
+
+    private func presetButton(_ preset: EqualizerPreset) -> some View {
+        Button { player.applyPreset(preset) } label: {
+            if preset.name == player.equalizer.preset { Label(preset.name, systemImage: "checkmark") } else { Text(preset.name) }
+        }
+    }
+
+    /// Moving a slider turns the equalizer on and makes the levels custom,
+    /// so a change is always heard.
+    private func edit(_ change: (inout EqualizerSettings) -> Void) {
+        var settings = player.equalizer
+        change(&settings)
+        settings.enabled = true
+        settings.preset = nil
+        player.equalizer = settings
+    }
+
+    private func gainSlider(_ name: String, value: Binding<Float>) -> some View {
+        let decibels = value.wrappedValue.formatted(.number.precision(.fractionLength(0...1)))
+        return VStack(alignment: .leading) {
+            Text("\(name): \(decibels) dB")
+                .accessibilityHidden(true)
+            Slider(value: value, in: EqualizerSettings.gainRange, step: 1)
+                .accessibilityLabel(name)
+                .accessibilityValue("\(decibels) decibels")
+        }
     }
 }
 

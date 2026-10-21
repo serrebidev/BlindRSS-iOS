@@ -1,6 +1,7 @@
 name: Build
 
-# Every push: tests and an unsigned .ipa (AltStore re-signs on install).
+# Every push: tests and an .ipa signed with the owner's certificate
+# (AltStore re-signs on install).
 # A v* tag also publishes the .ipa as a GitHub release.
 on:
   push:
@@ -53,7 +54,42 @@ jobs:
           cd "$RUNNER_TEMP/cvs/a11y-check" && swift build -c release 2>&1 | tail -3
           "$RUNNER_TEMP/cvs/a11y-check/.build/release/a11y-check" "$GITHUB_WORKSPACE/BlindRSS" | tee "$GITHUB_WORKSPACE/a11y-report.txt"
 
-      - name: Build IPA (unsigned, AltStore re-signs)
+      # The owner's Apple Development certificate (the one AltStore made),
+      # from repo secrets. No provisioning profile: AltStore re-signs on
+      # install. Unsigned IPAs made AltStore fail with "The data couldn't be
+      # read because it isn't in the correct format" (no entitlements to read).
+      - name: Signing keychain
+        env:
+          P12: ${{ secrets.IOS_SIGNING_P12 }}
+          P12_PASSWORD: ${{ secrets.IOS_SIGNING_P12_PASSWORD }}
+        run: |
+          [ -n "$P12" ] || { echo "No certificate secret (fork PR): build unsigned"; exit 0; }
+          KC="$RUNNER_TEMP/sign.keychain-db"
+          security create-keychain -p ci "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p ci "$KC"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/new.p12"
+          # macOS security cannot read OpenSSL 3's AES/SHA-256 PKCS#12 (MAC verification failed):
+          # re-pack it with 3DES and a SHA-1 MAC.
+          OSSL="$(brew --prefix openssl@3)/bin/openssl"
+          "$OSSL" pkcs12 -in "$RUNNER_TEMP/new.p12" -passin env:P12_PASSWORD -nodes -out "$RUNNER_TEMP/pem"
+          "$OSSL" pkcs12 -export -in "$RUNNER_TEMP/pem" -out "$RUNNER_TEMP/cert.p12" -passout env:P12_PASSWORD -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1
+          rm "$RUNNER_TEMP/new.p12" "$RUNNER_TEMP/pem"
+          curl -fsSL https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer -o "$RUNNER_TEMP/wwdr.cer"
+          security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          ID=$(security find-identity -p codesigning "$KC" | awk '/\)/{print $2; exit}')
+          TEAM=$(security find-certificate -c "$ID" -p "$KC" 2>/dev/null | openssl x509 -noout -subject | sed -n 's/.*OU *= *\([A-Z0-9]*\).*/\1/p')
+          [ -n "$TEAM" ] || TEAM=J7645K945T
+          echo "Signing with $ID, team $TEAM"
+          echo "SIGN_ID=$ID" >> "$GITHUB_ENV"
+          echo "SIGN_TEAM=$TEAM" >> "$GITHUB_ENV"
+          echo "KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          rm "$RUNNER_TEMP/cert.p12"
+
+      - name: Build IPA (signed, AltStore re-signs)
         run: |
           set -o pipefail
           VERSION=$(grep -m1 'MARKETING_VERSION' BlindRSS.xcodeproj/project.pbxproj | sed 's/.*= *//;s/;//')
@@ -63,6 +99,20 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | tail -40
           rm -rf Payload && mkdir Payload
           cp -R "build/Build/Products/Release-iphoneos/BlindRSS.app" Payload/
+          APP=Payload/BlindRSS.app
+          if [ -n "$SIGN_ID" ]; then
+            # Entitlements are only the identifiers; serrebiALT add_app.py
+            # drops both, so the source's appPermissions stay empty and match.
+            BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+            /usr/libexec/PlistBuddy -c "Add :application-identifier string $SIGN_TEAM.$BUNDLE_ID" \
+              -c "Add :com.apple.developer.team-identifier string $SIGN_TEAM" "$RUNNER_TEMP/app.entitlements"
+            find "$APP" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) -print0 |
+              xargs -0 -I{} codesign --force --timestamp=none --keychain "$KEYCHAIN" --sign "$SIGN_ID" {}
+            codesign --force --timestamp=none --keychain "$KEYCHAIN" --sign "$SIGN_ID" --entitlements "$RUNNER_TEMP/app.entitlements" "$APP"
+            codesign --verify --deep --strict "$APP" && codesign -dv "$APP" 2>&1 | grep -E "Authority|TeamIdentifier" | head -3
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "Refusing to release an unsigned IPA: AltStore cannot install it."; exit 1
+          fi
           zip -qry "BlindRSS-$VERSION-iOS.ipa" Payload
           ls -la *.ipa
 

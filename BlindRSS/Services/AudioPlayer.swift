@@ -8,8 +8,10 @@ import MediaPlayer
 
 /// Podcast/video playback. The iOS counterpart of the desktop VLC player
 /// (gui/player.py): play/pause, seek, speed, chapters, play queue, resume.
-/// AVPlayer replaces VLC; AirPlay comes free via AVPlayer. Chromecast,
-/// DLNA, equalizer, and silence skipping are Phase 2 (see AUDIT.md).
+/// AVPlayer replaces VLC; AirPlay comes free via AVPlayer. The equalizer
+/// and silence skipping run in AudioProcessor, a tap in AVPlayer's audio
+/// pipeline, so streams and downloads both get them. Chromecast and DLNA
+/// are Phase 2 (see AUDIT.md).
 @MainActor
 @Observable
 final class AudioPlayer {
@@ -18,8 +20,27 @@ final class AudioPlayer {
     private(set) var duration: TimeInterval = 0
     private(set) var currentTitle = ""
     var rate: Float = 1.0 {
-        didSet { if isPlaying { player.rate = rate } }
+        didSet { if isPlaying { applyRate() } }
     }
+    /// Desktop equalizer, saved like the desktop config's "equalizer" key.
+    var equalizer = EqualizerSettings.load() {
+        didSet {
+            equalizer.save()
+            processor.update(settings: equalizer, skipSilence: skipSilence)
+        }
+    }
+    private(set) var userPresets = EqualizerPreset.loadUser()
+    /// Desktop skip_silence, on by default as there.
+    var skipSilence = UserDefaults.standard.object(forKey: "skipSilence") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(skipSilence, forKey: "skipSilence")
+            processor.update(settings: equalizer, skipSilence: skipSilence)
+            if !skipSilence { setInSilence(false) }
+        }
+    }
+    private let processor = AudioProcessor()
+    /// True while the processor hears silence: playback runs fast through it.
+    @ObservationIgnored private var inSilence = false
     private(set) var queue: [Article] = []
     private(set) var currentArticle: Article?
 
@@ -53,6 +74,10 @@ final class AudioPlayer {
     init() {
         configureSession()
         configureRemoteCommands()
+        processor.update(settings: equalizer, skipSilence: skipSilence)
+        processor.onSilenceChange = { [weak self] silent in
+            Task { @MainActor in self?.setInSilence(silent) }
+        }
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main
         ) { [weak self] time in
@@ -184,6 +209,12 @@ final class AudioPlayer {
         currentTitle = article.title
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
+        inSilence = false
+        // Equalizer and silence skipping attach once the audio track is known.
+        Task { [processor] in
+            guard let track = try? await item.asset.loadTracks(withMediaType: .audio).first else { return }
+            item.audioMix = processor.audioMix(for: track)
+        }
         statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
             Task { @MainActor in
                 guard let self else { return }
@@ -192,7 +223,7 @@ final class AudioPlayer {
                     if resumeAt > 0 {
                         self.seek(to: resumeAt)
                     }
-                    self.player.rate = self.rate
+                    self.applyRate()
                     self.isPlaying = true
                 } else if item.status == .failed {
                     Announcer.announce("Playback failed. \(item.error?.localizedDescription ?? "")")
@@ -200,7 +231,7 @@ final class AudioPlayer {
             }
         }
         player.play()
-        player.rate = rate
+        applyRate()
         isPlaying = true
         updateNowPlaying()
         Announcer.announce("Playing \(article.title).")
@@ -215,7 +246,7 @@ final class AudioPlayer {
             Announcer.announce("Paused.")
         } else {
             player.play()
-            player.rate = rate
+            applyRate()
             isPlaying = true
             Announcer.announce("Playing.")
         }
@@ -245,6 +276,44 @@ final class AudioPlayer {
     func setRate(_ newRate: Float) {
         rate = min(4.0, max(0.5, (newRate * 100).rounded() / 100))
         Announcer.announce("Speed \(formattedRate).")
+    }
+
+    /// Plays at the chosen speed, or fast through silence. The desktop seeks
+    /// over silence it scanned ahead; a stream cannot be scanned ahead, so
+    /// silence plays at double speed, at least 4x, until sound returns.
+    private func applyRate() {
+        player.rate = inSilence ? min(max(rate * 2, 4), 8) : rate
+    }
+
+    private func setInSilence(_ silent: Bool) {
+        guard inSilence != silent else { return }
+        inSilence = silent && skipSilence
+        if isPlaying { applyRate() }
+    }
+
+    // MARK: Equalizer presets (desktop equalizer dialog)
+
+    func applyPreset(_ preset: EqualizerPreset) {
+        equalizer = EqualizerSettings(enabled: true, preamp: preset.preamp, bands: preset.bands, preset: preset.name)
+        Announcer.announce("\(preset.name) preset applied.")
+    }
+
+    /// Saves the current bands under a name, replacing a preset of that name.
+    func saveUserPreset(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        userPresets.removeAll { $0.name == trimmed }
+        userPresets.append(EqualizerPreset(name: trimmed, preamp: equalizer.preamp, bands: equalizer.bands))
+        EqualizerPreset.saveUser(userPresets)
+        equalizer.preset = trimmed
+        Announcer.announce("Saved preset \(trimmed).")
+    }
+
+    func deleteUserPreset(named name: String) {
+        userPresets.removeAll { $0.name == name }
+        EqualizerPreset.saveUser(userPresets)
+        if equalizer.preset == name { equalizer.preset = nil }
+        Announcer.announce("Deleted preset \(name).")
     }
 
     /// Desktop speed.up / speed.down step by 0.1x.

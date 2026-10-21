@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6
+
+- Fix updating and installing from AltStore. AltStore said "The data couldn't be read because it isn't in the correct format", because every BlindRSS build so far was unsigned. Builds are now signed with the owner's certificate, as Accessible IPTV builds are, and a release build fails instead of publishing an unsigned app.
+- The equalizer now works on streamed episodes, not only downloads. It matches the desktop: ten bands from 31.25 Hz to 16 kHz, a preamp, gains from -20 to +20 dB, the desktop's built-in presets, and presets you save and delete. Open it from More player controls, Equalizer.
+- Skip Silence now works on streamed episodes too, and is on by default as on the desktop. Quiet parts of 0.7 seconds or more play quickly until sound returns. Turn it off under More player controls or in the Equalizer.
+- Downloads now play in the mini player with every player control, instead of a separate download player.
+
 ## 0.1.5
 
 - The podcast player is now the mini player at the bottom of the screen, with every control of the desktop player. It no longer opens over the app. Controls: a position slider, back and forward by the seek interval, Play or Pause, Stop, speed, chapters, AirPlay, and More player controls.
