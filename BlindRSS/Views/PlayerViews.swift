@@ -211,6 +211,7 @@ struct EqualizerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var savingPreset = false
     @State private var presetName = ""
+    @AccessibilityFocusState private var saveButtonFocused: Bool
 
     var body: some View {
         let isUserPreset = player.userPresets.contains { $0.name == player.equalizer.preset }
@@ -245,6 +246,7 @@ struct EqualizerView: View {
                         presetName = player.equalizer.preset ?? ""
                         savingPreset = true
                     }
+                    .accessibilityFocused($saveButtonFocused)
                     if isUserPreset, let name = player.equalizer.preset {
                         Button("Delete Preset \(name)", role: .destructive) { player.deleteUserPreset(named: name) }
                     }
@@ -271,12 +273,19 @@ struct EqualizerView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .accessibilityLabel("Done with Equalizer")
                 }
             }
+            // Focus returns to Save as Preset when the alert closes.
             .alert("Save Preset", isPresented: $savingPreset) {
-                TextField("Preset name", text: $presetName)
-                Button("Save") { player.saveUserPreset(named: presetName) }
-                Button("Cancel", role: .cancel) {}
+                TextField("Preset name", text: $presetName, prompt: Text("Name"))
+                Button("Save") {
+                    player.saveUserPreset(named: presetName)
+                    saveButtonFocused = true
+                }
+                Button("Cancel", role: .cancel) { saveButtonFocused = true }
+            } message: {
+                Text("Preset name for the current levels.")
             }
         }
     }
@@ -356,6 +365,7 @@ struct PlayQueueView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .accessibilityLabel("Done with Play Queue")
                 }
                 if !player.queue.isEmpty {
                     ToolbarItem(placement: .destructiveAction) {
