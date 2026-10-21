@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.9
+
+- The mini player now starts compact, one row high: the episode title and time, Back, Play or Pause, and Forward. Before, it took about a fifth of an iPhone screen on every view, and more while typing a search. All player controls, at the end of the row, shows every control as before: Stop, speed, chapters, AirPlay, and More player controls. Fewer player controls shrinks it again, and the app remembers the choice. Swiping up or down on the title still seeks, and the two-finger double tap still plays and pauses.
+- On iPad and in landscape, articles and the player now stay at a readable width, centered, instead of stretching lines and buttons across the whole screen.
+- YouTube videos in the reader now fill the width at 16:9, instead of a fixed short strip.
+
 ## 0.1.8
 
 - Fix article actions not following the chosen order. iOS also lists a row's touch swipe actions in the VoiceOver Actions rotor, ahead of the row's own actions. So Delete, Favorite, Mark Read, Play, and Share came first, and most actions were offered twice. While VoiceOver is on, rows now offer only their own actions, in the order from Settings, Article Actions: Open in Browser, Download Media, and Copy Link first by default. Touch swipes are unchanged when VoiceOver is off.

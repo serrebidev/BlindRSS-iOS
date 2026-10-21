@@ -51,7 +51,7 @@ Magic Tap, a two-finger double tap anywhere, plays or pauses. This is the VoiceO
 
 Double tapping an article that has audio plays it and opens its notes in the reader.
 
-The player is the mini player bar at the bottom of the screen. It has every control of the desktop player, in this order:
+The player is the mini player bar at the bottom of the screen. It starts compact, one row high: Progress, Back, Play or Pause, Forward, then All player controls. Double tap All player controls to show every control of the desktop player; the same button, now called Fewer player controls, shrinks it again. The app remembers the choice. Expanded, the controls are, in this order:
 
 - Progress: the episode title. Swipe up or down to move by the seek interval from Settings (30 seconds by default). The value is the position and the current chapter, for example "3:05 of 42:10, chapter Intro". Touch users can drag the slider.
 - Back and Forward by the seek interval, Play or Pause, and Stop.

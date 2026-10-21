@@ -57,7 +57,9 @@ struct ArticleReaderView: View {
 
                 if let youTubeID {
                     YouTubePlayerView(videoID: youTubeID)
-                        .frame(height: 220)
+                        // Full width at 16:9; a fixed 220 points was a
+                        // thin strip on iPad and cropped on small phones.
+                        .aspectRatio(16 / 9, contentMode: .fit)
                         .accessibilityLabel("YouTube video player")
                         .accessibilityHint("Plays the video on this page.")
                 }
@@ -130,7 +132,9 @@ struct ArticleReaderView: View {
                 }
             }
             .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // Readable line length on iPad and in landscape, centered.
+            .frame(maxWidth: 700, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         // Chapters rotor: rotate to Chapters, swipe to jump between them.
         .accessibilityRotor("Chapters") {

@@ -12,12 +12,16 @@ import UIKit
 /// (AirPlay), Volume, and the Play Queue commands. Progress, speed, and
 /// chapters are VoiceOver-adjustable: swipe up or down changes the value,
 /// and the value is spoken in words (techniques: Adjustable Action,
-/// Accessibility Value).
+/// Accessibility Value). It starts as one compact row (title, time, back,
+/// Play/Pause, forward); All player controls expands it to the full set.
 struct MiniPlayerView: View {
     @Environment(AudioPlayer.self) private var player
     @AppStorage("seekInterval") private var seekInterval = 30.0
     @State private var showingQueue = false
     @State private var showingEqualizer = false
+    /// Compact by default: the full player took about a fifth of an
+    /// iPhone screen on every view, and more beside the search keyboard.
+    @AppStorage("miniPlayerExpanded") private var expanded = false
     /// Slider position while dragging; seeking every drag tick stalls AVPlayer.
     @State private var scrubTime: Double?
 
@@ -27,32 +31,211 @@ struct MiniPlayerView: View {
         let chapterTitle = chapterIndex.map { chapters[$0].title }
         let seconds = Int(seekInterval)
         VStack(spacing: 2) {
-            // Title and position (desktop title label, slider, and time).
-            VStack(alignment: .leading, spacing: 0) {
-                Text(player.currentTitle)
-                    .font(.subheadline)
-                    .lineLimit(2)
-                Slider(value: Binding(get: { scrubTime ?? min(player.currentTime, max(player.duration, 1)) },
-                                      set: { scrubTime = $0 }),
-                       in: 0...max(player.duration, 1)) { editing in
-                    if !editing, let scrubTime {
-                        player.seek(to: scrubTime)
-                        self.scrubTime = nil
+            HStack(alignment: .top, spacing: 0) {
+                if expanded {
+                    // Title and position (desktop title label, slider, and time).
+                    positionElement(chapterTitle: chapterTitle, seconds: seconds) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(player.currentTitle)
+                                .font(.subheadline)
+                                .lineLimit(2)
+                            Slider(value: Binding(get: { scrubTime ?? min(player.currentTime, max(player.duration, 1)) },
+                                                  set: { scrubTime = $0 }),
+                                   in: 0...max(player.duration, 1)) { editing in
+                                if !editing, let scrubTime {
+                                    player.seek(to: scrubTime)
+                                    self.scrubTime = nil
+                                }
+                            }
+                            .accessibilityLabel("Position")
+                            HStack {
+                                Text(AudioPlayer.formatTime(player.currentTime))
+                                Spacer()
+                                if let chapterTitle {
+                                    Text(chapterTitle).lineLimit(2)
+                                    Spacer()
+                                }
+                                Text(AudioPlayer.formatTime(player.duration))
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
                     }
-                }
-                .accessibilityLabel("Position")
-                HStack {
-                    Text(AudioPlayer.formatTime(player.currentTime))
-                    Spacer()
-                    if let chapterTitle {
-                        Text(chapterTitle).lineLimit(2)
-                        Spacer()
+                } else {
+                    // Compact bar, one row high: title and time, then back,
+                    // Play/Pause, and forward. The rest is one tap away.
+                    positionElement(chapterTitle: chapterTitle, seconds: seconds) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(player.currentTitle)
+                                .font(.subheadline)
+                                .lineLimit(1)
+                            Text("\(AudioPlayer.formatTime(player.currentTime)) / \(AudioPlayer.formatTime(player.duration))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     }
-                    Text(AudioPlayer.formatTime(player.duration))
+                    controlButton("Back \(seconds) seconds", systemImage: symbol("gobackward", seconds)) {
+                        player.seek(by: -seekInterval)
+                    }
+                    .frame(width: 48)
+                    controlButton(player.isPlaying ? "Pause" : "Play",
+                                  systemImage: player.isPlaying ? "pause.fill" : "play.fill") {
+                        player.togglePlayPause()
+                    }
+                    .frame(width: 48)
+                    controlButton("Forward \(seconds) seconds", systemImage: symbol("goforward", seconds)) {
+                        player.seek(by: seekInterval)
+                    }
+                    .frame(width: 48)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                // Outside the if, so VoiceOver focus stays on it when the
+                // player grows or shrinks.
+                Button {
+                    expanded.toggle()
+                } label: {
+                    Image(systemName: expanded ? "chevron.down" : "chevron.up")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(expanded ? "Fewer player controls" : "All player controls")
+                .accessibilityHint(expanded ? "Shrinks the player to one row."
+                                            : "Shows stop, speed, chapters, AirPlay, and more player controls.")
             }
+
+            if expanded {
+                HStack(spacing: 0) {
+                    controlButton("Back \(seconds) seconds", systemImage: symbol("gobackward", seconds)) {
+                        player.seek(by: -seekInterval)
+                    }
+                    controlButton(player.isPlaying ? "Pause" : "Play",
+                                  systemImage: player.isPlaying ? "pause.fill" : "play.fill") {
+                        player.togglePlayPause()
+                    }
+                    controlButton("Forward \(seconds) seconds", systemImage: symbol("goforward", seconds)) {
+                        player.seek(by: seekInterval)
+                    }
+                    controlButton("Stop", systemImage: "stop.fill") {
+                        player.stop()
+                        Announcer.announce("Stopped.")
+                    }
+
+                    Menu {
+                        Button { player.changeRate(by: 0.1) } label: { Label("Faster", systemImage: "hare") }
+                        Button { player.changeRate(by: -0.1) } label: { Label("Slower", systemImage: "tortoise") }
+                        Button { player.setRate(1) } label: { Label("Normal Speed", systemImage: "arrow.uturn.backward") }
+                        Section("Presets") {
+                            ForEach(AudioPlayer.speedSteps, id: \.self) { step in
+                                Button { player.setRate(step) } label: {
+                                    let text = step.formatted(.number.precision(.fractionLength(0...2))) + "×"
+                                    if step == player.rate { Label(text, systemImage: "checkmark") } else { Text(text) }
+                                }
+                            }
+                        }
+                    } label: {
+                        Text(player.formattedRate)
+                            .font(.footnote.bold())
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .accessibilityLabel("Playback speed")
+                    .accessibilityValue(player.formattedRate)
+                    .accessibilityAdjustableAction { direction in
+                        switch direction {
+                        case .increment: player.changeRate(by: 0.1)
+                        case .decrement: player.changeRate(by: -0.1)
+                        @unknown default: break
+                        }
+                    }
+                    .accessibilityHint("Opens speed choices. Adjusts speed by a tenth.")
+
+                    Menu {
+                        Button { player.jumpChapter(by: -1) } label: { Label("Previous Chapter", systemImage: "backward.end") }
+                        Button { player.jumpChapter(by: 1) } label: { Label("Next Chapter", systemImage: "forward.end") }
+                        if let chapterIndex, let href = chapters[chapterIndex].href, let url = URL(string: href) {
+                            Link(destination: url) { Label("Open Chapter Link", systemImage: "link") }
+                        }
+                        Section("Chapters") {
+                            ForEach(Array(chapters.enumerated()), id: \.element.id) { index, chapter in
+                                Button { player.seek(to: chapter.start) } label: {
+                                    let text = "\(AudioPlayer.formatTime(chapter.start)) \(chapter.title)"
+                                    if index == chapterIndex { Label(text, systemImage: "checkmark") } else { Text(text) }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .disabled(chapters.isEmpty)
+                    .accessibilityLabel("Chapters")
+                    .accessibilityValue(chapterTitle ?? (chapters.isEmpty ? "None" : "Before the first chapter"))
+                    .accessibilityAdjustableAction { direction in
+                        switch direction {
+                        case .increment: player.jumpChapter(by: 1)
+                        case .decrement: player.jumpChapter(by: -1)
+                        @unknown default: break
+                        }
+                    }
+                    .accessibilityHint("Opens the chapter list. Moves to the next or previous chapter.")
+
+                    // Desktop Cast button: AirPlay covers casting on iOS.
+                    AirPlayRouteView()
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .accessibilityLabel("AirPlay and output devices")
+
+                    Menu {
+                        Section("Sound") {
+                            Button { showingEqualizer = true } label: { Label("Equalizer", systemImage: "slider.vertical.3") }
+                            Toggle(isOn: Binding(get: { player.skipSilence }, set: { player.skipSilence = $0 })) {
+                                Label("Skip Silence", systemImage: "waveform.badge.minus")
+                            }
+                        }
+                        Section("Volume \(Int((player.volume * 100).rounded())) percent") {
+                            Button { player.adjustVolume(by: 0.05) } label: { Label("Volume Up", systemImage: "speaker.wave.3") }
+                            Button { player.adjustVolume(by: -0.05) } label: { Label("Volume Down", systemImage: "speaker.wave.1") }
+                        }
+                        Section("Play Queue, \(player.queue.count) items") {
+                            Button { player.playNextInQueue() } label: { Label("Play Next in Queue", systemImage: "forward.fill") }
+                            Button { player.playPreviousInQueue() } label: { Label("Play Previous in Queue", systemImage: "backward.fill") }
+                            Button { showingQueue = true } label: { Label("Open Play Queue", systemImage: "list.number") }
+                        }
+                        Menu {
+                            Button("Off") { player.sleepTimerSeconds = nil }
+                            Button("15 minutes") { player.sleepTimerSeconds = 900 }
+                            Button("30 minutes") { player.sleepTimerSeconds = 1800 }
+                            Button("60 minutes") { player.sleepTimerSeconds = 3600 }
+                            Button("End of episode") { player.sleepTimerSeconds = max(1, player.duration - player.currentTime) }
+                        } label: {
+                            Label("Sleep Timer", systemImage: "moon.zzz")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .accessibilityLabel("More player controls")
+                    .accessibilityHint("Equalizer, skip silence, volume, play queue, and sleep timer.")
+                }
+            }
+        }
+        // Readable width on iPad; the bar itself still spans the window.
+        .frame(maxWidth: 700)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.bar)
+        .sheet(isPresented: $showingQueue) {
+            PlayQueueView()
+        }
+        .sheet(isPresented: $showingEqualizer) {
+            EqualizerView()
+        }
+    }
+
+    /// Title and position as one VoiceOver element, in both sizes: swipe
+    /// up or down seeks by the seek interval.
+    private func positionElement<Content: View>(chapterTitle: String?, seconds: Int,
+                                                @ViewBuilder content: () -> Content) -> some View {
+        content()
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(player.currentTitle)
             .accessibilityValue(chapterTitle.map { "\(player.formattedPosition), chapter \($0)" } ?? player.formattedPosition)
@@ -64,128 +247,6 @@ struct MiniPlayerView: View {
                 }
             }
             .accessibilityHint("Adjusts playback position by \(seconds) seconds.")
-
-            HStack(spacing: 0) {
-                controlButton("Back \(seconds) seconds", systemImage: symbol("gobackward", seconds)) {
-                    player.seek(by: -seekInterval)
-                }
-                controlButton(player.isPlaying ? "Pause" : "Play",
-                              systemImage: player.isPlaying ? "pause.fill" : "play.fill") {
-                    player.togglePlayPause()
-                }
-                controlButton("Forward \(seconds) seconds", systemImage: symbol("goforward", seconds)) {
-                    player.seek(by: seekInterval)
-                }
-                controlButton("Stop", systemImage: "stop.fill") {
-                    player.stop()
-                    Announcer.announce("Stopped.")
-                }
-
-                Menu {
-                    Button { player.changeRate(by: 0.1) } label: { Label("Faster", systemImage: "hare") }
-                    Button { player.changeRate(by: -0.1) } label: { Label("Slower", systemImage: "tortoise") }
-                    Button { player.setRate(1) } label: { Label("Normal Speed", systemImage: "arrow.uturn.backward") }
-                    Section("Presets") {
-                        ForEach(AudioPlayer.speedSteps, id: \.self) { step in
-                            Button { player.setRate(step) } label: {
-                                let text = step.formatted(.number.precision(.fractionLength(0...2))) + "×"
-                                if step == player.rate { Label(text, systemImage: "checkmark") } else { Text(text) }
-                            }
-                        }
-                    }
-                } label: {
-                    Text(player.formattedRate)
-                        .font(.footnote.bold())
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .accessibilityLabel("Playback speed")
-                .accessibilityValue(player.formattedRate)
-                .accessibilityAdjustableAction { direction in
-                    switch direction {
-                    case .increment: player.changeRate(by: 0.1)
-                    case .decrement: player.changeRate(by: -0.1)
-                    @unknown default: break
-                    }
-                }
-                .accessibilityHint("Opens speed choices. Adjusts speed by a tenth.")
-
-                Menu {
-                    Button { player.jumpChapter(by: -1) } label: { Label("Previous Chapter", systemImage: "backward.end") }
-                    Button { player.jumpChapter(by: 1) } label: { Label("Next Chapter", systemImage: "forward.end") }
-                    if let chapterIndex, let href = chapters[chapterIndex].href, let url = URL(string: href) {
-                        Link(destination: url) { Label("Open Chapter Link", systemImage: "link") }
-                    }
-                    Section("Chapters") {
-                        ForEach(Array(chapters.enumerated()), id: \.element.id) { index, chapter in
-                            Button { player.seek(to: chapter.start) } label: {
-                                let text = "\(AudioPlayer.formatTime(chapter.start)) \(chapter.title)"
-                                if index == chapterIndex { Label(text, systemImage: "checkmark") } else { Text(text) }
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "list.bullet")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .disabled(chapters.isEmpty)
-                .accessibilityLabel("Chapters")
-                .accessibilityValue(chapterTitle ?? (chapters.isEmpty ? "None" : "Before the first chapter"))
-                .accessibilityAdjustableAction { direction in
-                    switch direction {
-                    case .increment: player.jumpChapter(by: 1)
-                    case .decrement: player.jumpChapter(by: -1)
-                    @unknown default: break
-                    }
-                }
-                .accessibilityHint("Opens the chapter list. Moves to the next or previous chapter.")
-
-                // Desktop Cast button: AirPlay covers casting on iOS.
-                AirPlayRouteView()
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .accessibilityLabel("AirPlay and output devices")
-
-                Menu {
-                    Section("Sound") {
-                        Button { showingEqualizer = true } label: { Label("Equalizer", systemImage: "slider.vertical.3") }
-                        Toggle(isOn: Binding(get: { player.skipSilence }, set: { player.skipSilence = $0 })) {
-                            Label("Skip Silence", systemImage: "waveform.badge.minus")
-                        }
-                    }
-                    Section("Volume \(Int((player.volume * 100).rounded())) percent") {
-                        Button { player.adjustVolume(by: 0.05) } label: { Label("Volume Up", systemImage: "speaker.wave.3") }
-                        Button { player.adjustVolume(by: -0.05) } label: { Label("Volume Down", systemImage: "speaker.wave.1") }
-                    }
-                    Section("Play Queue, \(player.queue.count) items") {
-                        Button { player.playNextInQueue() } label: { Label("Play Next in Queue", systemImage: "forward.fill") }
-                        Button { player.playPreviousInQueue() } label: { Label("Play Previous in Queue", systemImage: "backward.fill") }
-                        Button { showingQueue = true } label: { Label("Open Play Queue", systemImage: "list.number") }
-                    }
-                    Menu {
-                        Button("Off") { player.sleepTimerSeconds = nil }
-                        Button("15 minutes") { player.sleepTimerSeconds = 900 }
-                        Button("30 minutes") { player.sleepTimerSeconds = 1800 }
-                        Button("60 minutes") { player.sleepTimerSeconds = 3600 }
-                        Button("End of episode") { player.sleepTimerSeconds = max(1, player.duration - player.currentTime) }
-                    } label: {
-                        Label("Sleep Timer", systemImage: "moon.zzz")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .accessibilityLabel("More player controls")
-                .accessibilityHint("Equalizer, skip silence, volume, play queue, and sleep timer.")
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(.bar)
-        .sheet(isPresented: $showingQueue) {
-            PlayQueueView()
-        }
-        .sheet(isPresented: $showingEqualizer) {
-            EqualizerView()
-        }
     }
 
     private func controlButton(_ label: String, systemImage: String, action: @escaping () -> Void) -> some View {
