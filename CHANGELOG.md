@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11
+
+- On iPhone, Add Feed and More now sit right at the top of the feed list, under the status bar. 0.1.10 left a blank band above them.
+
 ## 0.1.10
 
 - On iPhone, Add Feed and More are now large buttons at the top of the feed list, before the Feeds heading, so VoiceOver reaches them first and they are easier to tap. More holds Refresh All and Settings. iPad keeps them in the sidebar toolbar.

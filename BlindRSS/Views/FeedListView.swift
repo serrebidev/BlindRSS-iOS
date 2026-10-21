@@ -51,14 +51,13 @@ struct FeedListView: View {
     var body: some View {
         let counts = libraryCounts()
         let feedsByCategory = Dictionary(grouping: feeds, by: \.category)
-        // Rows are tagged, not buttons: List selection is what makes the
-        // split view open the article list on iPhone.
-        List(selection: $selection) {
+        VStack(spacing: 0) {
             if isPhone {
-                // iPhone: large Add Feed and More buttons first, then the
-                // Feeds heading, so both come before it for VoiceOver and
-                // are easy to hit. The navigation bar is hidden here.
-                Section {
+                // iPhone: large Add Feed and More buttons first, then the Feeds
+                // heading, so both come before it for VoiceOver and are easy
+                // to hit. The navigation bar is hidden here. Outside the List,
+                // which left a blank band above its first section.
+                VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 12) {
                         Button {
                             showingAddFeed = true
@@ -86,33 +85,39 @@ struct FeedListView: View {
                         .font(.largeTitle.bold())
                         .accessibilityAddTraits(.isHeader)
                 }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                .padding(.horizontal)
+                .padding(.top, 4)
+                .background(Color(.systemGroupedBackground))
             }
-
-            Section {
-                ForEach(LibrarySelection.allCases) { view in
-                    Label(view.title, systemImage: view.systemImage)
-                        .tag(SidebarItem.library(view))
-                        .accessibilityLabel(view.title)
-                        .accessibilityValue(badgeValue(for: view, counts: counts))
-                        .accessibilityAddTraits(.isButton)
-                }
-            } header: {
-                Text("Library")
-                    .accessibilityAddTraits(.isHeader)
-            }
-
-            ForEach(feedsByCategory.keys.sorted(), id: \.self) { category in
+            // Rows are tagged, not buttons: List selection is what makes the
+            // split view open the article list on iPhone.
+            List(selection: $selection) {
                 Section {
-                    ForEach(feedsByCategory[category] ?? []) { feed in
-                        feedRow(feed, unread: counts.unreadByFeedID[feed.id] ?? 0)
+                    ForEach(LibrarySelection.allCases) { view in
+                        Label(view.title, systemImage: view.systemImage)
+                            .tag(SidebarItem.library(view))
+                            .accessibilityLabel(view.title)
+                            .accessibilityValue(badgeValue(for: view, counts: counts))
+                            .accessibilityAddTraits(.isButton)
                     }
                 } header: {
-                    Text(category)
+                    Text("Library")
                         .accessibilityAddTraits(.isHeader)
                 }
+
+                ForEach(feedsByCategory.keys.sorted(), id: \.self) { category in
+                    Section {
+                        ForEach(feedsByCategory[category] ?? []) { feed in
+                            feedRow(feed, unread: counts.unreadByFeedID[feed.id] ?? 0)
+                        }
+                    } header: {
+                        Text(category)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                }
             }
+            // Library section sits right under the Feeds heading.
+            .contentMargins(.top, isPhone ? 0 : nil, for: .scrollContent)
         }
         .listStyle(.sidebar)
         .refreshable {
