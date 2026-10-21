@@ -74,6 +74,8 @@ jobs:
           OSSL="$(brew --prefix openssl@3)/bin/openssl"
           "$OSSL" pkcs12 -in "$RUNNER_TEMP/new.p12" -passin env:P12_PASSWORD -nodes -out "$RUNNER_TEMP/pem"
           "$OSSL" pkcs12 -export -in "$RUNNER_TEMP/pem" -out "$RUNNER_TEMP/cert.p12" -passout env:P12_PASSWORD -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1
+          # The team is the certificate subject's OU.
+          TEAM=$("$OSSL" x509 -in "$RUNNER_TEMP/pem" -noout -subject -nameopt multiline | sed -n 's/^ *organizationalUnitName *= *//p')
           rm "$RUNNER_TEMP/new.p12" "$RUNNER_TEMP/pem"
           curl -fsSL https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer -o "$RUNNER_TEMP/wwdr.cer"
           security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
@@ -81,7 +83,6 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci "$KC" > /dev/null
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
           ID=$(security find-identity -p codesigning "$KC" | awk '/\)/{print $2; exit}')
-          TEAM=$(security find-certificate -c "$ID" -p "$KC" 2>/dev/null | openssl x509 -noout -subject | sed -n 's/.*OU *= *\([A-Z0-9]*\).*/\1/p')
           [ -n "$TEAM" ] || TEAM=J7645K945T
           echo "Signing with $ID, team $TEAM"
           echo "SIGN_ID=$ID" >> "$GITHUB_ENV"
