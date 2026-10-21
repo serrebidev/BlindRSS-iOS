@@ -44,9 +44,11 @@ final class AudioPlayer {
     }
     private var sleepTask: Task<Void, Never>?
     private var lastSavedPosition: TimeInterval = 0
+    /// Items left by Play Next, for Play Previous in Queue (desktop queue.prev).
+    private var history: [Article] = []
 
-    /// Desktop speed steps (Playback Speed submenu).
-    static let speedSteps: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+    /// Speed presets. The desktop range is 0.5x to 4x.
+    static let speedSteps: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0]
 
     init() {
         configureSession()
@@ -221,6 +223,7 @@ final class AudioPlayer {
     }
 
     func stop() {
+        saveProgress()
         player.pause()
         player.replaceCurrentItem(with: nil)
         isPlaying = false
@@ -240,8 +243,43 @@ final class AudioPlayer {
     func seek(by delta: TimeInterval) { seek(to: currentTime + delta) }
 
     func setRate(_ newRate: Float) {
-        rate = min(3.0, max(0.5, newRate))
+        rate = min(4.0, max(0.5, (newRate * 100).rounded() / 100))
         Announcer.announce("Speed \(formattedRate).")
+    }
+
+    /// Desktop speed.up / speed.down step by 0.1x.
+    func changeRate(by delta: Float) { setRate(rate + delta) }
+
+    /// Desktop Ctrl+Up / Ctrl+Down, volume_step 5 percent.
+    func adjustVolume(by delta: Float) {
+        volume = min(1, max(0, ((volume + delta) * 100).rounded() / 100))
+        Announcer.announce("Volume \(Int((volume * 100).rounded())) percent.")
+    }
+
+    // MARK: Chapters (desktop Chapters button, Ctrl+Shift+Left/Right/L)
+
+    var chapters: [Chapter] {
+        currentArticle?.chapters.sorted { $0.start < $1.start } ?? []
+    }
+
+    /// The chapter playing now: the last one that has started.
+    func chapterIndex(in chapters: [Chapter]) -> Int? {
+        chapters.lastIndex { $0.start <= currentTime + 0.5 }
+    }
+
+    func jumpChapter(by offset: Int) {
+        let list = chapters
+        guard !list.isEmpty else {
+            Announcer.announce("No chapters.")
+            return
+        }
+        let target = (chapterIndex(in: list) ?? -1) + offset
+        guard list.indices.contains(target) else {
+            Announcer.announce(offset > 0 ? "Last chapter." : "First chapter.")
+            return
+        }
+        seek(to: list[target].start)
+        Announcer.announce("Chapter \(target + 1), \(list[target].title).")
     }
 
     var formattedRate: String {
@@ -314,7 +352,22 @@ final class AudioPlayer {
         }
         let next = queue.removeFirst()
         persistQueue()
+        if let current = currentArticle { history.append(current) }
         play(article: next)
+    }
+
+    /// Goes back to the item before Play Next; the current one returns to
+    /// the front of the queue.
+    func playPreviousInQueue() {
+        guard let previous = history.popLast() else {
+            Announcer.announce("Start of play queue.")
+            return
+        }
+        if let current = currentArticle {
+            queue.insert(current, at: 0)
+            persistQueue()
+        }
+        play(article: previous)
     }
 
     private func updateNowPlaying() {

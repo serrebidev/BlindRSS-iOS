@@ -49,12 +49,17 @@ Turn the two-finger rotate gesture to pick a rotor, then swipe up or down to jum
 
 Magic Tap, a two-finger double tap anywhere, plays or pauses. This is the VoiceOver equivalent of the desktop Ctrl+P command.
 
-Open the player from the mini player bar at the bottom of the screen.
+Double tapping an article that has audio plays it and opens its notes in the reader.
 
-- Progress: focus it and swipe up or down to move 30 seconds at a time. It speaks position as "12 minutes of 43" style values, for example "3:05 of 42:10".
-- Playback speed: focus it and swipe up or down to change speed in quarter steps, from half speed to three times speed.
-- Chapters: buttons seek playback to the chapter start.
-- Play Queue: remove an item or play it now from its actions. Play Next in Queue starts the next item.
+The player is the mini player bar at the bottom of the screen. It has every control of the desktop player, in this order:
+
+- Progress: the episode title. Swipe up or down to move by the seek interval from Settings (30 seconds by default). The value is the position and the current chapter, for example "3:05 of 42:10, chapter Intro". Touch users can drag the slider.
+- Back and Forward by the seek interval, Play or Pause, and Stop.
+- Playback speed: swipe up or down to change speed by a tenth, from half speed to four times speed. Double tap for Faster, Slower, Normal Speed, and presets.
+- Chapters: swipe up or down for the next or previous chapter. Double tap for Previous Chapter, Next Chapter, Open Chapter Link, and the chapter list.
+- AirPlay and output devices.
+- More player controls: Volume Up and Volume Down in 5 percent steps, Play Next in Queue, Play Previous in Queue, Open Play Queue, and Sleep Timer.
+- Play Queue: remove an item, play it now, or move it up or down from its actions. Clear Queue is in the toolbar.
 
 State changes are announced: refresh results with new article counts, marked as read, added to favorites, deleted, added to the play queue, playing, paused, and playback failures. You do not need to hunt for a status bar.
 
@@ -80,6 +85,6 @@ In the reader, Fetch Full Text recovers complete articles, and YouTube articles 
 
 Episodes resume where you stopped, rewound ten seconds. Finished episodes are marked read, and the next queued episode starts on its own. The play queue survives restarting the app; Move Up, Move Down, Remove, Play Now, and Clear Queue are queue actions.
 
-Lock-screen and headphone controls play, pause, skip, and seek without opening the app. In the player: Volume is a slider, Speed Presets sets speed directly, Sleep Timer stops playback after 15, 30, or 60 minutes or at the end of the episode, and chapters seek when focused.
+Lock-screen and headphone controls play, pause, skip, and seek without opening the app. Sleep Timer, under More player controls, stops playback after 15, 30, or 60 minutes or at the end of the episode.
 
 Search Feeds and Podcasts in Add Feed is one combined search: type a name to search Apple Podcasts and gPodder together, or paste a site URL to detect its feeds. Subscribing is one tap on a result. A feed's Podcast Archive action recovers older episodes from the Wayback Machine and downloads them in batches. Auto-download in Settings fetches new episodes after refresh, up to the limit you set.

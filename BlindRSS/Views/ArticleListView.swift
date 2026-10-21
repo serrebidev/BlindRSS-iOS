@@ -75,8 +75,14 @@ struct ArticleListView: View {
                     .tag(article)
                 }
                 .onChange(of: selectedArticle) { _, article in
+                    guard let article else { return }
+                    // Opening a podcast plays it, as activating one does on
+                    // the desktop; the reader still opens with its notes.
+                    if article.hasMedia, player.currentArticle?.id != article.id {
+                        player.play(article: article)
+                    }
                     // Opening marks read quietly: the reader appearing is the feedback.
-                    guard let article, !article.isRead else { return }
+                    guard !article.isRead else { return }
                     article.isRead = true
                     article.openedAt = Date()
                     try? context.save()
@@ -174,7 +180,8 @@ private struct ArticleRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(article.title)
         .accessibilityValue(accessibilityValue)
-        .accessibilityHint("Shows article actions.")
+        .accessibilityHint(article.hasMedia ? "Plays the episode and opens its notes. Shows article actions."
+                                            : "Shows article actions.")
         .accessibilityAddTraits(.isButton)
         // Touch swipe actions (sighted and low-vision path).
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {

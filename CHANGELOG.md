@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5
+
+- The podcast player is now the mini player at the bottom of the screen, with every control of the desktop player. It no longer opens over the app. Controls: a position slider, back and forward by the seek interval, Play or Pause, Stop, speed, chapters, AirPlay, and More player controls.
+- Speed goes from 0.5x to 4x like the desktop. Swipe up or down on Playback speed to change it by a tenth. The menu has Faster, Slower, Normal Speed, and presets.
+- Chapters: swipe up or down on Chapters to move to the next or previous chapter. The menu adds Open Chapter Link and the chapter list, with the current chapter checked. The progress value names the current chapter.
+- More player controls: Volume Up and Volume Down in 5 percent steps, Play Next in Queue, the new Play Previous in Queue, Open Play Queue, and Sleep Timer.
+- Double tapping an article with audio now plays it, as activating it does on the desktop. The reader still opens with its notes.
+- Stop now saves your position.
+
 ## 0.1.4
 
 - Fix Fetch Full Text. It used to strip the tags from the whole web page, so it read menus, footers, cookie notices, and related links. It never picked out the article. It now finds the article the way BlindRSS for Android does, and keeps only its headings and paragraphs.
