@@ -326,13 +326,13 @@ struct PlayQueueView: View {
                     List(player.queue) { queued in
                         Text(queued.title)
                             .frame(minHeight: 44, alignment: .leading)
-                            .swipeActions(edge: .leading) {
+                            .touchSwipeActions(edge: .leading) {
                                 Button { player.play(article: queued); player.dequeue(queued) } label: {
                                     Label("Play Now", systemImage: "play.fill")
                                 }
                                 .tint(.green)
                             }
-                            .swipeActions(edge: .trailing) {
+                            .touchSwipeActions(edge: .trailing) {
                                 Button(role: .destructive) { player.dequeue(queued) } label: {
                                     Label("Remove", systemImage: "minus.circle")
                                 }

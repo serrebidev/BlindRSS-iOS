@@ -28,7 +28,7 @@ struct DeletedArticlesView: View {
                     .accessibilityLabel(item.title ?? "Untitled")
                     .accessibilityValue("Deleted \(item.deletedAt.formatted(date: .abbreviated, time: .shortened))")
                     .accessibilityHint("Shows restore options.")
-                    .swipeActions(edge: .trailing) {
+                    .touchSwipeActions(edge: .trailing) {
                         Button(role: .destructive) { store.purgeDeleted(item, in: context) } label: { Label("Delete Permanently", systemImage: "trash.fill") }
                         Button { store.restoreDeleted(item, in: context) } label: { Label("Restore", systemImage: "arrow.uturn.backward") }
                     }
@@ -58,7 +58,7 @@ struct SmartFoldersView: View {
                         SmartFolderArticlesView(folder: folder)
                     }
                     .accessibilityLabel(folder.name)
-                    .swipeActions(edge: .trailing) {
+                    .touchSwipeActions(edge: .trailing) {
                         Button(role: .destructive) { context.delete(folder); try? context.save() } label: { Label("Delete", systemImage: "trash") }
                     }
                     .accessibilityAction { context.delete(folder); try? context.save() } label: { Label("Delete Smart Folder", systemImage: "trash") }
@@ -129,7 +129,7 @@ struct FilterRulesView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(rule.name)
                     .accessibilityHint("Shows rule actions.")
-                    .swipeActions(edge: .trailing) {
+                    .touchSwipeActions(edge: .trailing) {
                         Button(role: .destructive) { context.delete(rule); try? context.save() } label: { Label("Delete", systemImage: "trash") }
                     }
                     .accessibilityAction { context.delete(rule); try? context.save() } label: { Label("Delete Rule", systemImage: "trash") }

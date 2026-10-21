@@ -11,9 +11,10 @@ import UIKit
 ///
 /// - Each row is one combined element: title, feed, date, read and favorite
 ///   state, and "has audio" are spoken once, in that order.
-/// - Every touch `.swipeActions` entry is duplicated as a VoiceOver
-///   `.accessibilityAction` with a Label icon on the same row. Neither user
-///   group gets an action the other cannot reach.
+/// - Every touch swipe action is also a VoiceOver action with a Label icon
+///   on the same row. Neither user group gets an action the other cannot
+///   reach. Swipes are touch-only (`touchSwipeActions`): VoiceOver would
+///   otherwise list them too, first, out of the chosen order.
 /// - A hint is present because swipe actions exist; it names the result,
 ///   never the gesture.
 /// - Custom Rotors (Unread, Favorites, With Audio) use `.accessibilityRotor`
@@ -188,7 +189,7 @@ private struct ArticleRow: View {
                                             : "Shows article actions.")
         .accessibilityAddTraits(.isButton)
         // Touch swipe actions (sighted and low-vision path).
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+        .touchSwipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 store.deleteArticle(article, in: context)
             } label: { Label("Delete", systemImage: "trash") }
@@ -202,7 +203,7 @@ private struct ArticleRow: View {
             } label: { Label(article.isRead ? "Mark Unread" : "Mark Read",
                             systemImage: article.isRead ? "envelope.badge" : "envelope.open") }
         }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+        .touchSwipeActions(edge: .leading, allowsFullSwipe: false) {
             if article.hasMedia {
                 Button {
                     player.play(article: article)
@@ -386,6 +387,35 @@ struct ArticleActionOrderView: View {
         reordered.insert(action, at: target)
         stored = ArticleAction.stored(reordered)
         Announcer.announce("\(action.title) moved to position \(target + 1).")
+    }
+}
+
+// MARK: - Touch swipe actions
+
+/// Swipe actions for touch only. SwiftUI also lists a row's swipe actions
+/// in the VoiceOver Actions rotor, ahead of the row's own accessibility
+/// actions, so every action was offered twice and the order chosen in
+/// Settings, Article Actions was lost behind Delete, Favorite, and Mark
+/// Read. While VoiceOver runs, rows offer only their accessibility actions.
+private struct TouchSwipeActions<Actions: View>: ViewModifier {
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    let edge: HorizontalEdge
+    let allowsFullSwipe: Bool
+    let actions: Actions
+
+    func body(content: Content) -> some View {
+        if voiceOverEnabled {
+            content
+        } else {
+            content.swipeActions(edge: edge, allowsFullSwipe: allowsFullSwipe) { actions }
+        }
+    }
+}
+
+extension View {
+    func touchSwipeActions<Actions: View>(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true,
+                                          @ViewBuilder content: () -> Actions) -> some View {
+        modifier(TouchSwipeActions(edge: edge, allowsFullSwipe: allowsFullSwipe, actions: content()))
     }
 }
 

@@ -164,7 +164,7 @@ struct FeedListView: View {
         .accessibilityHint("Shows feed actions.")
         .accessibilityAddTraits(.isButton)
         // Touch swipe actions.
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+        .touchSwipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 deleteFeed(feed)
             } label: { Label("Delete", systemImage: "trash") }
@@ -172,7 +172,7 @@ struct FeedListView: View {
                 markAllRead(feed)
             } label: { Label("Mark All Read", systemImage: "envelope.open") }
         }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+        .touchSwipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
                 Task { await store.refresh(feed: feed, in: context) }
             } label: { Label("Refresh", systemImage: "arrow.clockwise") }

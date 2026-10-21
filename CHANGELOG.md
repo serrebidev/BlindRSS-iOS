@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8
+
+- Fix article actions not following the chosen order. iOS also lists a row's touch swipe actions in the VoiceOver Actions rotor, ahead of the row's own actions. So Delete, Favorite, Mark Read, Play, and Share came first, and most actions were offered twice. While VoiceOver is on, rows now offer only their own actions, in the order from Settings, Article Actions: Open in Browser, Download Media, and Copy Link first by default. Touch swipes are unchanged when VoiceOver is off.
+- The same duplicate actions are gone from feeds, the play queue, deleted articles, smart folders, and filter rules.
+
 ## 0.1.7
 
 - Feeds now refresh automatically. Settings, Refresh automatically offers Never, every 5, 10, or 30 minutes, every hour, every 2 hours, or every day. The default is every 5 minutes, as on the desktop.
