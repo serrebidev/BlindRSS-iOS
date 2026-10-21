@@ -104,6 +104,7 @@ struct AddFeedView: View {
 /// keeps its visible label; nothing is labels-hidden without a replacement.
 struct SettingsView: View {
     @AppStorage("refreshOnStartup") private var refreshOnStartup = true
+    @AppStorage("refreshInterval") private var refreshInterval = LibraryStore.defaultRefreshInterval
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     @AppStorage("autoDownloadPodcasts") private var autoDownloadPodcasts = false
     @AppStorage("maxDownloads") private var maxDownloads = 32
@@ -122,6 +123,13 @@ struct SettingsView: View {
                 Section {
                     Toggle("Refresh on startup", isOn: $refreshOnStartup)
                         .accessibilityHint("Fetches new articles when the app opens.")
+                    Picker("Refresh automatically", selection: $refreshInterval) {
+                        ForEach(LibraryStore.refreshIntervals, id: \.seconds) { choice in
+                            Text(choice.label).tag(choice.seconds)
+                        }
+                    }
+                    .accessibilityHint("Fetches new articles on this schedule. When the app is closed, iOS chooses the exact time.")
+                    .onChange(of: refreshInterval) { BackgroundRefresh.schedule() }
                     Toggle("Resume playback", isOn: .constant(true))
                         .accessibilityHint("Continues episodes where you left off.")
                     Toggle("Auto-download podcasts", isOn: $autoDownloadPodcasts)

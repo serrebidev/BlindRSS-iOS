@@ -13,6 +13,19 @@ import UserNotifications
 @MainActor
 final class LibraryStore {
     private let session: URLSession
+    private static var isRefreshingAll = false
+    /// When the last Refresh All started, manual or automatic; the
+    /// automatic refresh interval counts from here.
+    static var lastRefreshAll: Date?
+
+    /// Desktop refresh_interval choices that suit a phone, in seconds.
+    /// 0 is Never (manual refresh only).
+    static let refreshIntervals: [(seconds: Double, label: String)] = [
+        (0, "Never"), (300, "Every 5 minutes"), (600, "Every 10 minutes"), (1800, "Every 30 minutes"),
+        (3600, "Every hour"), (7200, "Every 2 hours"), (86400, "Every day"),
+    ]
+    /// Desktop default refresh_interval is 300 seconds.
+    static let defaultRefreshInterval: Double = 300
 
     init(session: URLSession = .shared) { self.session = session }
 
@@ -63,25 +76,27 @@ final class LibraryStore {
     /// 698 requests for the reference Miniflux account, and the results
     /// were stored again under local ids, duplicating every article.
     @discardableResult
-    private func syncHosted(in context: ModelContext) async -> Int {
+    private func syncHosted(in context: ModelContext, quiet: Bool = false) async -> Int {
         guard let config = HostedConfig.load() else { return 0 }
         do {
-            return try await HostedSync().sync(config: config, in: context)
+            let sync = HostedSync()
+            sync.quiet = quiet
+            return try await sync.sync(config: config, in: context)
         } catch {
-            Announcer.announce("Sync failed. \(error.localizedDescription)")
+            if !quiet { Announcer.announce("Sync failed. \(error.localizedDescription)") }
             return 0
         }
     }
 
     /// Updates feed state and merges entries. Callers save.
     @discardableResult
-    private func apply(parsed: ParsedFeed, to feed: Feed, in context: ModelContext) -> Int {
+    private func apply(parsed: ParsedFeed, to feed: Feed, in context: ModelContext, quiet: Bool = false) -> Int {
         if !feed.titleIsCustom, feed.title != parsed.title { feed.title = parsed.title }
         if feed.lastError != nil { feed.lastError = nil }
         feed.lastSuccessAt = Date()
         if feed.consecutiveFailures != 0 { feed.consecutiveFailures = 0 }
         let added = merge(entries: parsed.entries, into: feed, in: context)
-        if added > 0 { Announcer.announce("\(feed.title): \(added) new articles.") }
+        if added > 0, !quiet { Announcer.announce("\(feed.title): \(added) new articles.") }
         return added
     }
 
@@ -98,10 +113,21 @@ final class LibraryStore {
     /// a time, so 698 feeds meant 698 sequential round trips.
     /// Saves happen every 25 feeds, not after each one: every save
     /// re-runs each open @Query and re-renders the lists.
-    func refreshAll(feeds: [Feed], in context: ModelContext) async {
+    /// `quiet` is for automatic refreshes: no per-feed or progress speech,
+    /// only the new-article total, and only when there is something new.
+    func refreshAll(feeds: [Feed], in context: ModelContext, quiet: Bool = false) async {
+        // One at a time: an automatic refresh and Refresh All running
+        // together would merge the same entries twice.
+        guard !Self.isRefreshingAll else {
+            if !quiet { Announcer.announce("Refresh already in progress.") }
+            return
+        }
+        Self.isRefreshingAll = true
+        Self.lastRefreshAll = Date()
+        defer { Self.isRefreshingAll = false }
         var newTotal = 0
         if feeds.contains(where: \.isHosted) {
-            newTotal += await syncHosted(in: context)
+            newTotal += await syncHosted(in: context, quiet: quiet)
         }
         let localFeeds = feeds.filter { !$0.isHosted }
         let feedsByID = Dictionary(localFeeds.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -132,7 +158,7 @@ final class LibraryStore {
                 if let feed = feedsByID[feedID] {
                     switch result {
                     case .success(let parsed):
-                        newTotal += apply(parsed: parsed, to: feed, in: context)
+                        newTotal += apply(parsed: parsed, to: feed, in: context, quiet: quiet)
                     case .failure(let error):
                         recordError(error, for: feed, in: context)
                     }
@@ -144,7 +170,11 @@ final class LibraryStore {
         }
         try? context.save()
         for feed in localFeeds { await autoDownloadPodcasts(feed: feed) }
-        Announcer.announce("Refresh complete. \(newTotal) new articles.")
+        if !quiet {
+            Announcer.announce("Refresh complete. \(newTotal) new articles.")
+        } else if newTotal > 0 {
+            Announcer.announce("\(newTotal) new articles.")
+        }
         if newTotal > 0, UserDefaults.standard.bool(forKey: "notificationsEnabled") {
             let content = UNMutableNotificationContent()
             content.title = "BlindRSS"

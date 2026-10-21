@@ -69,7 +69,7 @@ State changes are announced: refresh results with new article counts, marked as 
 
 Add Feed is in the feed list toolbar. It asks for a feed URL and a category. Errors are announced, not only shown in red text. Subscribe confirms with the feed name and article count.
 
-Settings has OPML import and export, refresh on startup, resume playback, default playback speed, and the seek interval. Import announces how many feeds were found and when the import finishes.
+Settings has OPML import and export, refresh on startup, Refresh automatically (Never, or every 5, 10, or 30 minutes, every hour, every 2 hours, or every day; every 5 minutes by default, as on the desktop), resume playback, default playback speed, and the seek interval. Automatic refreshes are quiet: they only speak when there are new articles, for example "12 new articles." When the app is closed, iOS Background App Refresh runs them at a time iOS chooses, no sooner than the interval, and new articles raise a notification when Notifications for new articles is on. Import announces how many feeds were found and when the import finishes.
 
 ## Hardware keyboards
 

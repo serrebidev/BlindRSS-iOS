@@ -66,6 +66,12 @@ struct HostedConfig {
 @MainActor
 final class HostedSync {
     private let session = URLSession.shared
+    /// Automatic refreshes stay silent; LibraryStore speaks the total.
+    var quiet = false
+
+    private func announce(_ message: String) {
+        if !quiet { Announcer.announce(message) }
+    }
 
     /// Pulls feeds and latest entries into the local library. Returns new count.
     @discardableResult
@@ -107,7 +113,7 @@ final class HostedSync {
             }
         }
         try context.save()
-        Announcer.announce("Found \(feeds.count) feeds. Fetching articles.")
+        announce("Found \(feeds.count) feeds. Fetching articles.")
 
         let pageSize = 500
         let maxEntries = 2000
@@ -152,10 +158,10 @@ final class HostedSync {
             }
             fetched += page.entries.count
             try context.save()
-            Announcer.announce("Fetched \(fetched) articles.")
+            announce("Fetched \(fetched) articles.")
             if page.entries.count < pageSize { break }
         }
-        Announcer.announce("Miniflux sync complete. \(added) new articles from \(feeds.count) feeds.")
+        announce("Miniflux sync complete. \(added) new articles from \(feeds.count) feeds.")
         return added
     }
 
@@ -213,7 +219,7 @@ final class HostedSync {
             }
         }
         try context.save()
-        Announcer.announce("Hosted sync complete. \(added) new articles.")
+        announce("Hosted sync complete. \(added) new articles.")
         return added
     }
 

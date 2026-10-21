@@ -18,6 +18,11 @@ struct ContentView: View {
     /// which is why feeds and views could not be opened before 0.1.3.
     @State private var sidebarSelection: SidebarItem?
     @State private var selectedArticle: Article?
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("refreshInterval") private var refreshInterval = LibraryStore.defaultRefreshInterval
+    @AppStorage("refreshOnStartup") private var refreshOnStartup = true
+    @State private var autoRefresher = LibraryStore()
+    @State private var didStartupRefresh = false
 
     private var selectedView: LibrarySelection {
         if case .library(let view)? = sidebarSelection { return view }
@@ -64,6 +69,45 @@ struct ContentView: View {
         // A new feed or view starts with no article open; a stale one
         // would jump straight to the old reader on iPhone.
         .onChange(of: sidebarSelection) { selectedArticle = nil }
+        // Automatic refresh (desktop refresh_interval) while the app is
+        // open; BlindRSSApp asks iOS for background refreshes otherwise.
+        .task(id: "\(refreshInterval) \(scenePhase == .active)") { await autoRefreshLoop() }
+    }
+
+    /// Refresh on startup, then every interval, counted from the last
+    /// Refresh All of any kind. Restarts when the interval or the app's
+    /// active state changes.
+    private func autoRefreshLoop() async {
+        guard scenePhase == .active else { return }
+        if !didStartupRefresh {
+            didStartupRefresh = true
+            if refreshOnStartup {
+                await refreshAllFeeds()
+            } else if LibraryStore.lastRefreshAll == nil {
+                LibraryStore.lastRefreshAll = Date()
+            }
+        }
+        guard refreshInterval > 0 else { return }
+        while !Task.isCancelled {
+            let wait = (LibraryStore.lastRefreshAll ?? .distantPast)
+                .addingTimeInterval(refreshInterval).timeIntervalSinceNow
+            if wait > 0 {
+                try? await Task.sleep(for: .seconds(wait))
+            } else {
+                await refreshAllFeeds()
+            }
+        }
+    }
+
+    private func refreshAllFeeds() async {
+        let feeds = (try? context.fetch(FetchDescriptor<Feed>())) ?? []
+        guard !feeds.isEmpty else {
+            LibraryStore.lastRefreshAll = Date()
+            return
+        }
+        // Unstructured on purpose: leaving the app cancels the loop, and a
+        // cancelled refresh would record every unfinished feed as failed.
+        await Task { await autoRefresher.refreshAll(feeds: feeds, in: context, quiet: true) }.value
     }
 
     /// Connects the player to SwiftData: resume positions, progress saves,

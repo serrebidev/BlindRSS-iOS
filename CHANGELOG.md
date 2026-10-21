@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.7
+
+- Feeds now refresh automatically. Settings, Refresh automatically offers Never, every 5, 10, or 30 minutes, every hour, every 2 hours, or every day. The default is every 5 minutes, as on the desktop.
+- Automatic refreshes are quiet. They speak only when there are new articles, for example "12 new articles.", instead of announcing every feed.
+- When the app is closed, iOS Background App Refresh refreshes on the same schedule. iOS picks the exact time: never sooner than the interval, often later, and not at all if Background App Refresh is off for BlindRSS. New articles raise a notification when Notifications for new articles is on.
+- Fix Refresh on startup. The setting was saved but never used, so the app did not refresh when it opened.
+- Only one Refresh All runs at a time. Pulling to refresh during an automatic refresh says "Refresh already in progress." instead of fetching every feed twice.
+
 ## 0.1.6
 
 - Fix updating and installing from AltStore. AltStore said "The data couldn't be read because it isn't in the correct format", because every BlindRSS build so far was unsigned. Builds are now signed with the owner's certificate, as Accessible IPTV builds are, and a release build fails instead of publishing an unsigned app.
