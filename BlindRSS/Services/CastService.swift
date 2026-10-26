@@ -55,7 +55,7 @@ enum CastService {
         info.metadata = metadata
         let options = GCKMediaLoadOptions()
         options.autoplay = true
-        if player.currentTime > 0 { options.startTime = player.currentTime }
+        if player.currentTime > 0 { options.playbackPosition = player.currentTime }
         _ = client.loadMedia(info.build(), with: options)
         if player.isPlaying { player.togglePlayPause() }
         let device = session.device.friendlyName ?? "Cast device"
