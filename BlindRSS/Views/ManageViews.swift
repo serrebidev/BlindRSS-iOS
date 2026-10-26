@@ -128,10 +128,10 @@ struct FilterRulesView: View {
         if actions.markRead { parts.append("mark read") }
         if actions.favorite { parts.append("favorite") }
         if actions.delete { parts.append("delete") }
-        if actions.skipNotification { parts.append("skip notification") }
-        if let move = actions.moveCategory { parts.append("move to \(move)") }
-        if !actions.labels.isEmpty { parts.append("label \(actions.labels.joined(separator: ", "))") }
-        if actions.stop { parts.append("stop") }
+        if rule.skipNotification { parts.append("skip notification") }
+        if !rule.moveCategory.isEmpty { parts.append("move to \(rule.moveCategory)") }
+        if !rule.labelCategory.isEmpty { parts.append("label \(rule.labelCategory)") }
+        if rule.stop { parts.append("stop") }
         return parts.isEmpty ? "no actions" : parts.joined(separator: ", ")
     }
 
