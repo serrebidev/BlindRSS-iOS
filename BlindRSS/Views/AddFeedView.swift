@@ -127,6 +127,8 @@ struct SettingsView: View {
     @State private var showingExporter = false
     @State private var showingImporter = false
     @State private var showingTakeoutImporter = false
+    @State private var youtubeAccount = YouTubeAccount.shared
+    @State private var showingYouTubeSignIn = false
 
     var body: some View {
         NavigationStack {
@@ -194,6 +196,30 @@ struct SettingsView: View {
                         }
                 } header: {
                     Text("Library")
+                        .accessibilityAddTraits(.isHeader)
+                }
+
+                Section {
+                    if youtubeAccount.isSignedIn {
+                        Text("Signed in to YouTube")
+                            .accessibilityLabel("Signed in to YouTube")
+                        Text("Subscriptions and Recommendations are in Search Feeds and Podcasts.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Sign Out of YouTube", role: .destructive) {
+                            youtubeAccount.signOut()
+                        }
+                        .accessibilityHint("Removes the saved YouTube sign-in from this device.")
+                    } else {
+                        Button {
+                            showingYouTubeSignIn = true
+                        } label: {
+                            Label("Sign In to YouTube", systemImage: "person.crop.circle")
+                        }
+                        .accessibilityHint("Shows a code to enter on YouTube's activation page. Your password is never typed into the app.")
+                    }
+                } header: {
+                    Text("YouTube Account")
                         .accessibilityAddTraits(.isHeader)
                 }
 
@@ -307,6 +333,9 @@ struct SettingsView: View {
             }
             .fileImporter(isPresented: $showingTakeoutImporter, allowedContentTypes: [.zip]) { result in
                 importTakeout(result)
+            }
+            .sheet(isPresented: $showingYouTubeSignIn) {
+                YouTubeSignInView()
             }
         }
     }

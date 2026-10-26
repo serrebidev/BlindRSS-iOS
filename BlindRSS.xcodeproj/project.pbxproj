@@ -52,6 +52,9 @@
 		4695A8096C481D634D802CF3 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A5E0E05C09474BEFC87C12BA /* Localizable.xcstrings */; };
 		8BDAA09D8DC472CFFFAC3A24 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = C9188769B9A1DE64EFF95B7D /* YouTubeKit */; };
 		B9894548C0C94C3B091AB485 /* GoogleCast in Frameworks */ = {isa = PBXBuildFile; productRef = 7FA078D973A11001458A4F99 /* GoogleCast */; };
+		C856F64614E77E90AE052E5E /* YouTubeAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E243B51331A13BBEE1835D /* YouTubeAuth.swift */; };
+		B4C1E168F762A2EBA8D4E634 /* YouTubeAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF93ABED069888B4116F36A /* YouTubeAuth.swift */; };
+		BE287DE70EC06ADEF912BB80 /* YouTubeAccountViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC20FFD5E49F4FFAE37E173C /* YouTubeAccountViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -111,6 +114,9 @@
 		2BD38032DA3EDD14A20B112D /* CastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CastService.swift; sourceTree = "<group>"; };
 		A4215F67A61D79236B0978E9 /* ResearchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchViews.swift; sourceTree = "<group>"; };
 		A5E0E05C09474BEFC87C12BA /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		F8E243B51331A13BBEE1835D /* YouTubeAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeAuth.swift; sourceTree = "<group>"; };
+		ABF93ABED069888B4116F36A /* YouTubeAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/YouTubeAuth.swift"; sourceTree = "<group>"; };
+		CC20FFD5E49F4FFAE37E173C /* YouTubeAccountViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeAccountViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -183,6 +189,7 @@
 				23D327DED6E1D66ED0E8776F /* AwesomeRSS.swift */,
 				F618A3E776E9C50568DE60D9 /* YouTubeStreams.swift */,
 				2BD38032DA3EDD14A20B112D /* CastService.swift */,
+				F8E243B51331A13BBEE1835D /* YouTubeAuth.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -198,6 +205,7 @@
 				EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */,
 				8CA295F141778656B8F77BC1 /* ManageViews.swift */,
 				A4215F67A61D79236B0978E9 /* ResearchViews.swift */,
+				CC20FFD5E49F4FFAE37E173C /* YouTubeAccountViews.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -220,6 +228,7 @@
 				FA9C6AFF837FB6030D9A4318 /* TranslationService.swift */,
 				87B88320343F85C9C62C90EB /* ForumService.swift */,
 				727FFE605F9C180662BE701D /* AwesomeRSS.swift */,
+				ABF93ABED069888B4116F36A /* YouTubeAuth.swift */,
 			);
 			path = BlindRSSTests;
 			sourceTree = "<group>";
@@ -383,6 +392,8 @@
 				B35B06A21C0A0176D88CEE5A /* YouTubeStreams.swift in Sources */,
 				584140D6E684CD1D82A63B79 /* CastService.swift in Sources */,
 				6CA870E750D8449A6454BAC4 /* ResearchViews.swift in Sources */,
+				C856F64614E77E90AE052E5E /* YouTubeAuth.swift in Sources */,
+				BE287DE70EC06ADEF912BB80 /* YouTubeAccountViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -405,6 +416,7 @@
 				E2C1034E21FFA80E88C6E176 /* TranslationService.swift in Sources */,
 				BAF134D0008490E8540AD2F2 /* ForumService.swift in Sources */,
 				BEFE4A1C4086CA6CADF30F29 /* AwesomeRSS.swift in Sources */,
+				B4C1E168F762A2EBA8D4E634 /* YouTubeAuth.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -443,14 +455,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_FILE = BlindRSS/Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.13;
+				MARKETING_VERSION = 0.1.14;
 				ENABLE_TESTING = YES;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -467,14 +479,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_FILE = BlindRSS/Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.13;
+				MARKETING_VERSION = 0.1.14;
 				ENABLE_TESTING = YES;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

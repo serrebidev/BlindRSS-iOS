@@ -398,3 +398,80 @@ downloads exactly one OPML file and lists its feeds for one-tap
 subscribe, grouped by the OPML's own categories. Keyed news APIs
 stay keyed, with the keyless RSS directories as the shipped
 equivalent.
+
+## 0.1.14 addendum (2026-10-26): section D overturned by the SmartTube audit
+
+Brandon directed an audit of SmartTube's own authentication
+("smarttube sourcecode should have an auth we can use"). The audit
+read the source of yuliskov/SmartTube and yuliskov/MediaServiceCore
+(the youtubeapi module SmartTube is built on). Findings, with file
+evidence:
+
+- License first: both repositories are MIT (their LICENSE files),
+  not GPL as assumed when the task was briefed. BlindRSS is also
+  MIT. The implementation below is nevertheless fresh Swift written
+  from the audited flow — Java does not port — so no code was copied
+  either way.
+- There is NO hardcoded OAuth client and NO Google Cloud project.
+  youtubeapi/app/AppServiceCore.java + AppService.java:
+  getClientId()/getClientSecret() resolve through
+  youtubeapi/app/models/ClientData.java, which regex-extracts the
+  pair from the YouTube TV web app's base JavaScript. The script URL
+  comes from youtubeapi/app/models/AppInfo.java, parsing GET
+  https://www.youtube.com/tv (TV user agent) for
+  id="base-js" src="...". ClientData's comments: the FIRST match is
+  the Android TV device pair; later occurrences answer HTTP 401.
+  The pair is cached keyed by the script URL (ClientDataCached).
+- The flow is OAuth 2.0 for limited-input devices
+  (youtubeapi/auth/V2/AuthApi.java, AuthApiHelper.java):
+  POST https://www.youtube.com/o/oauth2/device/code with JSON
+  {client_id, device_id (a persistent per-install id from
+  MediaServiceData), model_name "ytlr::", scope
+  "http://gdata.youtube.com https://www.googleapis.com/auth/youtube-paid-content"}
+  returns {device_code, user_code, expires_in, interval,
+  verification_url} (googlecommon/common/models/auth/UserCode.java).
+  The user enters the code at the activation page; the app polls
+  POST https://www.youtube.com/o/oauth2/token with
+  {device_code, client_id, client_secret, grant_type
+  "http://oauth.net/grant_type/device/1.0"} (AuthService polls every
+  3 s, up to 200 attempts) until it returns {access_token,
+  expires_in, refresh_token, scope, token_type}
+  (models/auth/AccessToken.java, ErrorResponse.java carries
+  error/error_description, e.g. authorization_pending).
+- Refresh: the same token endpoint with {refresh_token, client_id,
+  client_secret, grant_type "refresh_token"}. Only the refresh
+  token is kept long-term; access tokens are minted on demand and
+  the signed-call header is "Bearer <access_token>"
+  (youtubeapi/service/YouTubeSignInService.java,
+  createAuthorizationHeader: tokenType + " " + accessToken).
+- Authenticated Innertube identity: the TV client only
+  (youtubeapi/common/helpers/AppClient.kt: isAuthSupported is true
+  for TV-family clients). clientName TVHTML5, clientVersion
+  7.20260901.15.00, Cobalt user agent, referer
+  https://www.youtube.com/tv (youtubeapi/innertube/utils/
+  Constants.kt, CLIENTS.TV); the TV Innertube API key is
+  AppConstants.API_KEY, appended to youtubei calls by
+  RetrofitOkHttpHelper. Browse goes to youtubei/v1/browse with the
+  TV context: Subscriptions is browseId "FEsubscriptions" and the
+  Home/Recommendations feed is browseId "default"
+  (youtubeapi/browse/v1/BrowseApiHelper.java).
+- Live verification, 2026-10-26 from this workspace, following the
+  source exactly: GET youtube.com/tv (TV user agent) exposed the
+  base-js URL; the 1.1 MB script matched ClientData's patterns
+  (4 client-id occurrences; the first is the Android TV device
+  pair); POSTing that client id to the device-code endpoint
+  returned a real user code (expires_in 1800, interval 5,
+  verification_url https://www.google.com/device). The flow is
+  alive today, and because the credentials are extracted at
+  runtime, Google rotating them does not strand the app.
+
+Verdict: section D's blocker is REMOVED. YouTube sign-in ships in
+0.1.14 (Settings, YouTube Account: a code to enter on the
+activation page, polling in-app, refresh token in the Keychain,
+sign-out), and with it the two account sources the brief required:
+YouTube Subscriptions and YouTube Recommendations in Discover,
+browsing to the same video view (player, stream, transcript) as
+Video Search results. The 0.1.13 verdict's remaining route — an
+owner-registered Google Cloud OAuth client — is unnecessary;
+nothing is left for Brandon to supply here. Reddit is unchanged
+from the 0.1.13 audit, per his "I dunno": left exactly as audited.

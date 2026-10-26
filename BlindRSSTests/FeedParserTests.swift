@@ -704,3 +704,110 @@ final class ResearchRoundTests: XCTestCase {
         XCTAssertNil(feed.entries[0].mediaURL)
     }
 }
+
+// MARK: - YouTube account sign-in (0.1.14, SmartTube audit)
+
+final class YouTubeAuthTests: XCTestCase {
+    func testBaseJSURLFromTVPage() {
+        let html = #"<script id="base-js" src="/s/_/kabuki/_/js/k=kabuki.base.en_US.X.O/am=AA/d=1/rs=ANjR/m=base"></script>"#
+        XCTAssertEqual(YouTubeTVAuth.baseJSURL(fromTVPageHTML: html)?.absoluteString,
+                       "https://www.youtube.com/s/_/kabuki/_/js/k=kabuki.base.en_US.X.O/am=AA/d=1/rs=ANjR/m=base")
+        XCTAssertNil(YouTubeTVAuth.baseJSURL(fromTVPageHTML: "<html>no script</html>"))
+    }
+
+    func testClientCredentialsExtractionTakesFirstPair() {
+        let js = """
+        var a={clientId:"111111111111-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.apps.googleusercontent.com",clientSecret:"FIRSTSECRET1234567890"};
+        var b={clientId:"222222222222-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.apps.googleusercontent.com",clientSecret:"SECONDSECRET"};
+        """
+        let credentials = YouTubeTVAuth.clientCredentials(fromBaseJS: js)
+        XCTAssertEqual(credentials?.id, "111111111111-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.apps.googleusercontent.com")
+        XCTAssertEqual(credentials?.secret, "FIRSTSECRET1234567890")
+        XCTAssertNil(YouTubeTVAuth.clientCredentials(fromBaseJS: "no constants here"))
+    }
+
+    func testParseUserCode() {
+        let json = """
+        {"device_code":"long-device-code","user_code":"KSS-MXW-SVSG",
+         "verification_url":"https://www.google.com/device","expires_in":1800,"interval":5}
+        """
+        let code = YouTubeTVAuth.parseUserCode(Data(json.utf8))
+        XCTAssertEqual(code?.userCode, "KSS-MXW-SVSG")
+        XCTAssertEqual(code?.deviceCode, "long-device-code")
+        XCTAssertEqual(code?.interval, 5)
+        XCTAssertNil(YouTubeTVAuth.parseUserCode(Data("{}".utf8)))
+    }
+
+    func testParseTokenOutcomes() {
+        let success = #"{"access_token":"ya29.example","expires_in":3600,"refresh_token":"1//refresh","scope":"s","token_type":"Bearer"}"#
+        XCTAssertEqual(YouTubeTVAuth.parseToken(Data(success.utf8)),
+                       .success(accessToken: "ya29.example", refreshToken: "1//refresh", expiresIn: 3600))
+        let refreshed = #"{"access_token":"ya29.new","expires_in":3599,"token_type":"Bearer"}"#
+        XCTAssertEqual(YouTubeTVAuth.parseToken(Data(refreshed.utf8)),
+                       .success(accessToken: "ya29.new", refreshToken: nil, expiresIn: 3599))
+        XCTAssertEqual(YouTubeTVAuth.parseToken(Data(#"{"error":"authorization_pending"}"#.utf8)), .pending)
+        XCTAssertEqual(YouTubeTVAuth.parseToken(Data(#"{"error":"slow_down"}"#.utf8)), .pending)
+        XCTAssertEqual(YouTubeTVAuth.parseToken(Data(#"{"error":"access_denied"}"#.utf8)), .failed("access_denied"))
+        XCTAssertEqual(YouTubeTVAuth.parseToken(Data(#"{"error":"expired_token"}"#.utf8)), .failed("expired_token"))
+    }
+
+    func testBrowseParsesGridVideoRenderers() {
+        // TV browse shape: grid items with overlay durations.
+        let json = """
+        {
+          "contents": {
+            "tvBrowseRenderer": {
+              "content": {
+                "tvSurfaceContentRenderer": {
+                  "content": {
+                    "gridRenderer": {
+                      "items": [
+                        {
+                          "gridVideoRenderer": {
+                            "videoId": "grid1234567",
+                            "title": {
+                              "runs": [
+                                {
+                                  "text": "Grid Video"
+                                }
+                              ]
+                            },
+                            "shortBylineText": {
+                              "runs": [
+                                {
+                                  "text": "Grid Channel"
+                                }
+                              ]
+                            },
+                            "publishedTimeText": {
+                              "simpleText": "2 days ago"
+                            },
+                            "thumbnailOverlays": [
+                              {
+                                "thumbnailOverlayTimeStatusRenderer": {
+                                  "text": {
+                                    "simpleText": "8:12"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+        let results = YouTubeService.parseSearchResults(Data(json.utf8))
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].videoID, "grid1234567")
+        XCTAssertEqual(results[0].title, "Grid Video")
+        XCTAssertEqual(results[0].channel, "Grid Channel")
+        XCTAssertEqual(results[0].durationText, "8:12")
+        XCTAssertEqual(results[0].publishedText, "2 days ago")
+    }
+}
