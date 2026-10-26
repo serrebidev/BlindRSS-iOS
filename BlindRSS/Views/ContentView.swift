@@ -114,6 +114,9 @@ struct ContentView: View {
         // A sheet, not the split view's selection: it works from any
         // sidebar state on iPhone and iPad alike.
         .task(id: AppNavigator.shared.articleIDToOpen) { openRequestedArticle() }
+        .task(id: AppNavigator.shared.searchText) {
+            if AppNavigator.shared.searchText != nil { sidebarSelection = .library(.all) }
+        }
         .sheet(item: $requestedArticle) { article in
             NavigationStack {
                 ArticleReaderView(article: article)

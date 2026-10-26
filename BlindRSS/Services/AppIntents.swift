@@ -31,6 +31,9 @@ struct ArticleEntity: AppEntity {
     @Property(title: "Feed") var feedTitle: String
     @Property(title: "Date") var date: Date?
     @Property(title: "Link") var link: String
+    /// The start of the article's text, for Spotlight and for the
+    /// library search Apple Intelligence runs over Spotlight (iOS 27).
+    let snippet: String
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(title)", subtitle: "\(feedTitle)")
@@ -42,13 +45,23 @@ struct ArticleEntity: AppEntity {
         feedTitle = article.feed?.title ?? ""
         date = article.date
         link = article.url
+        snippet = String(HTMLText.plainText(from: String((article.summary ?? article.content).prefix(1500))).prefix(400))
     }
 }
 
 /// Spotlight lists recent articles by title and feed; tapping one runs
-/// OpenArticleIntent.
+/// OpenArticleIntent. The snippet and date make them findable by
+/// content and let "Ask Your Library" answer from them.
 @available(iOS 18, *)
-extension ArticleEntity: IndexedEntity {}
+extension ArticleEntity: IndexedEntity {
+    var attributeSet: CSSearchableItemAttributeSet {
+        let attributes = defaultAttributeSet
+        attributes.contentDescription = snippet
+        attributes.contentCreationDate = date
+        attributes.authorNames = feedTitle.isEmpty ? nil : [feedTitle]
+        return attributes
+    }
+}
 
 /// Siri and Apple Intelligence read an article (the one on screen, or one
 /// a shortcut passes along) as plain text: title, link, then the best
@@ -311,12 +324,89 @@ struct RefreshFeedsIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let context = LibraryContainer.shared.mainContext
-        let feeds = (try? context.fetch(FetchDescriptor<Feed>())) ?? []
-        guard !feeds.isEmpty else { return .result(dialog: "You have no feeds yet.") }
-        await LibraryStore().refreshAll(feeds: feeds, in: context, quiet: true)
-        await SpotlightIndex.update()
+        let feedCount = (try? context.fetchCount(FetchDescriptor<Feed>())) ?? 0
+        guard feedCount > 0 else { return .result(dialog: "You have no feeds yet.") }
+        if #available(iOS 27, *) {
+            // Hundreds of feeds outlast the 30-second intent limit: a
+            // long-running intent keeps going while it reports progress.
+            let progress = self.progress
+            progress.totalUnitCount = Int64(feedCount)
+            try await performBackgroundTask {
+                await Self.refresh { done, _ in progress.completedUnitCount = Int64(done) }
+            }
+        } else {
+            await Self.refresh()
+        }
         let unread = (try? context.fetchCount(FetchDescriptor<Article>(predicate: #Predicate { !$0.isRead }))) ?? 0
         return .result(dialog: "Feeds refreshed. \(unread) unread articles.")
+    }
+
+    @MainActor
+    private static func refresh(onProgress: ((Int, Int) -> Void)? = nil) async {
+        let context = LibraryContainer.shared.mainContext
+        let feeds = (try? context.fetch(FetchDescriptor<Feed>())) ?? []
+        await LibraryStore().refreshAll(feeds: feeds, in: context, quiet: true, onProgress: onProgress)
+        await SpotlightIndex.update()
+    }
+}
+
+@available(iOS 27, *)
+extension RefreshFeedsIntent: LongRunningIntent {}
+
+/// "Search BlindRSS for ...": Siri and Apple Intelligence route searches
+/// here (the system search schema), and the app opens on All Articles
+/// with the search filled in.
+@available(iOS 18, *)
+@AppIntent(schema: .system.search)
+struct SearchArticlesIntent: ShowInAppSearchResultsIntent {
+    static let searchScopes: [StringSearchScope] = [.general]
+    var criteria: StringSearchCriteria
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        AppNavigator.shared.searchText = criteria.term
+        return .result()
+    }
+}
+
+/// A question about everything in the library (iOS 27).
+struct AskLibraryIntent: AppIntent {
+    static let title: LocalizedStringResource = "Ask Your Library"
+    static let description = IntentDescription("Answers a question from all your articles with Apple Intelligence, naming the articles it used.")
+
+    @Parameter(title: "Question", requestValueDialog: "What do you want to know?")
+    var question: String
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        do {
+            let answer = try await AppleIntelligence.askLibrary(question)
+            return .result(value: answer, dialog: "\(answer)")
+        } catch {
+            throw IntentFailure(message: error.localizedDescription)
+        }
+    }
+}
+
+/// Spoken descriptions of an article's images (iOS 27).
+struct DescribeArticleImagesIntent: AppIntent {
+    static let title: LocalizedStringResource = "Describe Article Images"
+    static let description = IntentDescription("Describes the pictures in an article with Apple Intelligence.")
+
+    @Parameter(title: "Article", requestValueDialog: "Which article?")
+    var article: ArticleEntity
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        guard let found = ArticleQuery.fetch(ids: [article.id]).first else {
+            throw IntentFailure(message: "That article is no longer in BlindRSS.")
+        }
+        do {
+            let descriptions = try await AppleIntelligence.describeImages(html: found.content, pageURL: found.url)
+            return .result(value: descriptions, dialog: "\(descriptions)")
+        } catch {
+            throw IntentFailure(message: error.localizedDescription)
+        }
     }
 }
 
@@ -355,6 +445,13 @@ struct BlindRSSShortcuts: AppShortcutsProvider {
         AppShortcut(intent: AskAboutArticleIntent(), phrases: [
             "Ask \(.applicationName) about an article",
         ], shortTitle: "Ask About Article", systemImageName: "questionmark.bubble")
+        AppShortcut(intent: AskLibraryIntent(), phrases: [
+            "Ask \(.applicationName)",
+            "Ask my \(.applicationName) library",
+        ], shortTitle: "Ask Your Library", systemImageName: "books.vertical")
+        AppShortcut(intent: DescribeArticleImagesIntent(), phrases: [
+            "Describe the images in \(.applicationName)",
+        ], shortTitle: "Describe Images", systemImageName: "photo")
         AppShortcut(intent: UnreadCountIntent(), phrases: [
             "How many unread articles in \(.applicationName)",
             "\(.applicationName) unread count",

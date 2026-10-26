@@ -132,7 +132,10 @@ final class LibraryStore {
     /// re-runs each open @Query and re-renders the lists.
     /// `quiet` is for automatic refreshes: no per-feed or progress speech,
     /// only the new-article total, and only when there is something new.
-    func refreshAll(feeds: [Feed], in context: ModelContext, quiet: Bool = false) async {
+    /// `onProgress` hears (feeds done, feed total) as feeds finish; a
+    /// long-running Siri refresh reports it to keep its time extension.
+    func refreshAll(feeds: [Feed], in context: ModelContext, quiet: Bool = false,
+                    onProgress: ((Int, Int) -> Void)? = nil) async {
         // One at a time: an automatic refresh and Refresh All running
         // together would merge the same entries twice.
         guard !Self.isRefreshingAll else {
@@ -185,6 +188,7 @@ final class LibraryStore {
                         recordError(error, for: feed, in: context)
                     }
                     merged += 1
+                    onProgress?(merged, jobs.count)
                     if merged % 25 == 0 { try? context.save() }
                 }
                 enqueueNext()

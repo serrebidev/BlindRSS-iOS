@@ -57,6 +57,9 @@ final class AppNavigator {
     static let shared = AppNavigator()
     /// Set by OpenArticleIntent; ContentView opens the article and clears it.
     var articleIDToOpen: String?
+    /// Set by SearchArticlesIntent; ContentView opens All Articles and
+    /// ArticleListView takes the term into its search field.
+    var searchText: String?
 }
 
 /// Refresh while the app is closed (iOS Background App Refresh). iOS picks

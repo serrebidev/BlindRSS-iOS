@@ -138,6 +138,13 @@ struct ArticleListView: View {
             }
         }
         .searchable(text: $searchText, prompt: "Search articles")
+        // A search Siri or Apple Intelligence sent (SearchArticlesIntent).
+        .task(id: AppNavigator.shared.searchText) {
+            guard let term = AppNavigator.shared.searchText else { return }
+            AppNavigator.shared.searchText = nil
+            searchText = term
+            Announcer.announce("Searching for \(term).")
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -182,6 +189,63 @@ struct ArticleListView: View {
             AppleIntelligenceSheet(title: "Briefing") {
                 try await AppleIntelligence.briefing(of: chosen)
             }
+        }
+    }
+}
+
+/// Ask Your Library (iOS 27): a question about every article, answered
+/// by Apple Intelligence searching the library through Spotlight.
+struct AskLibraryView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var question = ""
+    @State private var lines: [String] = []
+    @State private var isThinking = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Question", text: $question, axis: .vertical)
+                        .submitLabel(.send)
+                        .onSubmit(ask)
+                        .accessibilityHint("For example: what did my feeds say about the election this week?")
+                    Button("Ask", action: ask)
+                        .disabled(isThinking || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if isThinking {
+                        ProgressView("Apple Intelligence is searching your articles")
+                    }
+                }
+                if !lines.isEmpty {
+                    Section {
+                        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                            Text(line).textSelection(.enabled)
+                        }
+                    } header: {
+                        Text("Answer").accessibilityAddTraits(.isHeader)
+                    }
+                }
+            }
+            .writingTools()
+            .navigationTitle("Ask Your Library")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func ask() {
+        let asked = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !asked.isEmpty, !isThinking else { return }
+        isThinking = true
+        Announcer.announce("Searching your articles.")
+        Task {
+            let answer: String
+            do { answer = try await AppleIntelligence.askLibrary(asked) } catch { answer = error.localizedDescription }
+            lines = answer.components(separatedBy: "\n")
+            isThinking = false
+            Announcer.announce(answer)
         }
     }
 }
@@ -290,6 +354,7 @@ private struct ArticleRow: View {
                                             : "Shows article actions.")
         .accessibilityAddTraits(.isButton)
         .accessibilityFocused($voFocused)
+        .annotatesArticle(article.id)
         .onAppear {
             // Text articles prefetch their full text as rows appear, so
             // it is ready to be read at the end of the row's announcement.

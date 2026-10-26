@@ -16,6 +16,8 @@ struct FeedListView: View {
     @State private var store = LibraryStore()
     @State private var showingAddFeed = false
     @State private var showingSettings = false
+    @State private var showingAskLibrary = false
+    @AppStorage("appleIntelligence.enabled") private var appleIntelligenceEnabled = true
     @State private var editingFeed: Feed?
     @State private var archiveFeed: Feed?
     @State private var isRefreshing = false
@@ -71,6 +73,7 @@ struct FeedListView: View {
                         .keyboardShortcut("n", modifiers: .command)
                         Menu {
                             refreshAllButton
+                            if offersLibraryQuestions { askLibraryButton }
                             settingsButton
                         } label: {
                             Label("More", systemImage: "ellipsis.circle")
@@ -168,6 +171,9 @@ struct FeedListView: View {
                 .keyboardShortcut("n", modifiers: .command)
             }
             ToolbarItem(placement: .secondaryAction) { refreshAllButton }
+            if offersLibraryQuestions {
+                ToolbarItem(placement: .secondaryAction) { askLibraryButton }
+            }
             ToolbarItem(placement: .secondaryAction) { settingsButton }
         }
         .toolbar(isPhone ? .hidden : .automatic, for: .navigationBar)
@@ -176,6 +182,9 @@ struct FeedListView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $showingAskLibrary) {
+            AskLibraryView()
         }
         .sheet(item: $editingFeed) { feed in
             FeedEditView(feed: feed)
@@ -216,6 +225,17 @@ struct FeedListView: View {
         .disabled(isRefreshing)
         .accessibilityHint("Fetches new articles from every feed.")
         .keyboardShortcut("r", modifiers: .command)
+    }
+
+    private var offersLibraryQuestions: Bool { appleIntelligenceEnabled && AppleIntelligence.offersIOS27Features }
+
+    private var askLibraryButton: some View {
+        Button {
+            showingAskLibrary = true
+        } label: {
+            Label("Ask Your Library", systemImage: "books.vertical")
+        }
+        .accessibilityHint("Ask Apple Intelligence a question about all your articles.")
     }
 
     private var settingsButton: some View {

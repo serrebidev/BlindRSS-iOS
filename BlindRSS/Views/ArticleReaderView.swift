@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import AppIntents
+import ImagePlayground
 import SwiftUI
 
 /// Reading pane (desktop reading pane and article window). Continuous text
@@ -268,6 +269,7 @@ struct ArticleReaderView: View {
         // Writing Tools (iOS 18) on selected article text: proofread,
         // summarize, or rewrite a passage.
         .writingTools()
+        .annotatesArticle(article.id)
         // Siri onscreen awareness (iOS 18.2): "summarize this" or "send
         // this to Mom" acts on the open article (ArticleEntity).
         .userActivity("org.serrebidev.BlindRSS.article") { activity in
@@ -359,6 +361,27 @@ struct ArticleReaderView: View {
         }
         .disabled(isThinking)
         HStack(spacing: 12) {
+            // iOS 27 multimodal prompts: the article's pictures, described.
+            if AppleIntelligence.offersIOS27Features,
+               !AppleIntelligence.imageReferences(inHTML: article.content, baseURL: URL(string: article.url)).isEmpty {
+                Button {
+                    Task {
+                        await showResult(heading: "Image Descriptions") {
+                            try await AppleIntelligence.describeImages(html: article.content, pageURL: article.url)
+                        }
+                    }
+                } label: {
+                    Label("Describe Images", systemImage: "photo")
+                }
+                .disabled(isThinking)
+                .accessibilityHint("Describes the pictures in this article with Apple Intelligence.")
+            }
+            if #available(iOS 18.1, *) {
+                CreateImageButton(title: article.title,
+                                  text: bodyBlocks.prefix(20).map(\.text).joined(separator: "\n"))
+            }
+        }
+        HStack(spacing: 12) {
             TextField("Ask about this article", text: $question)
                 .textFieldStyle(.roundedBorder)
                 .submitLabel(.send)
@@ -387,26 +410,34 @@ struct ArticleReaderView: View {
     /// Feeds often send only a teaser, so the full article is recovered
     /// first (and shown); YouTube videos add their transcript.
     private func runAppleIntelligence(_ request: AppleIntelligence.Request, bodyBlocks: [ReaderBlock]) async {
+        await showResult(heading: request.heading) {
+            var text = bodyBlocks.map(\.text).joined(separator: "\n")
+            if fullText == nil, !showTranslation {
+                text = await AppleIntelligence.readableText(of: article)
+                fullText = FullTextCache.shared.blocks(for: article.id)
+            }
+            if let youTubeID, transcript == nil {
+                transcript = await YouTubeService.transcriptParagraphs(videoID: youTubeID)
+            }
+            if let transcript, !transcript.isEmpty {
+                text += "\nTranscript:\n" + transcript.joined(separator: "\n")
+            }
+            return try await AppleIntelligence.run(request, title: article.title, text: text)
+        }
+    }
+
+    /// Runs one Apple Intelligence task: progress while it works, then
+    /// the result under its heading, spoken when it arrives.
+    private func showResult(heading: String, _ work: () async throws -> String) async {
         guard !isThinking else { return }
         isThinking = true
         defer { isThinking = false }
         Announcer.announce("Apple Intelligence is working.")
-        var text = bodyBlocks.map(\.text).joined(separator: "\n")
-        if fullText == nil, !showTranslation {
-            text = await AppleIntelligence.readableText(of: article)
-            fullText = FullTextCache.shared.blocks(for: article.id)
-        }
-        if let youTubeID, transcript == nil {
-            transcript = await YouTubeService.transcriptParagraphs(videoID: youTubeID)
-        }
-        if let transcript, !transcript.isEmpty {
-            text += "\nTranscript:\n" + transcript.joined(separator: "\n")
-        }
         do {
-            let result = try await AppleIntelligence.run(request, title: article.title, text: text)
-            aiHeading = request.heading
+            let result = try await work()
+            aiHeading = heading
             aiText = result
-            Announcer.announce("\(request.heading). \(result)")
+            Announcer.announce("\(heading). \(result)")
         } catch is CancellationError {
         } catch {
             aiHeading = "Apple Intelligence"
@@ -445,7 +476,51 @@ struct ArticleReaderView: View {
     }
 }
 
+/// Image Playground (iOS 18.1; Apple's new Private Cloud Compute image
+/// model on iOS 27): an illustration from the article's ideas, kept in
+/// the reader with a description and a Share button.
+@available(iOS 18.1, *)
+private struct CreateImageButton: View {
+    @Environment(\.supportsImagePlayground) private var supportsImagePlayground
+    @State private var showingPlayground = false
+    @State private var createdImage: URL?
+    let title: String
+    let text: String
+
+    var body: some View {
+        if supportsImagePlayground {
+            Button {
+                showingPlayground = true
+            } label: {
+                Label("Create Image", systemImage: "photo.badge.plus")
+            }
+            .accessibilityHint("Opens Image Playground with ideas from this article.")
+            .imagePlaygroundSheet(isPresented: $showingPlayground,
+                                  concepts: [.extracted(from: text, title: title)]) { url in
+                createdImage = url
+                Announcer.announce("Image created. Share Created Image is below.")
+            }
+            if let createdImage {
+                ShareLink(item: createdImage) {
+                    Label("Share Created Image", systemImage: "square.and.arrow.up")
+                }
+            }
+        }
+    }
+}
+
 extension View {
+    /// Onscreen awareness (iOS 18.4): this view shows that article, so
+    /// Siri and Apple Intelligence can act on "this one" in a list too.
+    @ViewBuilder
+    func annotatesArticle(_ id: String) -> some View {
+        if #available(iOS 18.4, *) {
+            appEntityIdentifier(EntityIdentifier(for: ArticleEntity.self, identifier: id))
+        } else {
+            self
+        }
+    }
+
     /// Full Apple Intelligence Writing Tools on this view's text (iOS 18).
     @ViewBuilder
     func writingTools() -> some View {

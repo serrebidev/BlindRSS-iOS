@@ -121,6 +121,7 @@ struct SettingsView: View {
     @AppStorage("reader.links") private var readerLinks = false
     @AppStorage("reader.altText") private var readerAltText = false
     @AppStorage("appleIntelligence.enabled") private var appleIntelligenceEnabled = true
+    @AppStorage("appleIntelligence.privateCloud") private var privateCloudEnabled = true
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -248,9 +249,20 @@ struct SettingsView: View {
                     Text(AppleIntelligence.status.message)
                     if AppleIntelligence.isSupported {
                         Toggle("Apple Intelligence actions", isOn: $appleIntelligenceEnabled)
-                            .accessibilityHint("Shows Summarize, Key Points, Ask, and Brief Me. Everything runs privately on this device.")
+                            .accessibilityHint("Shows Summarize, Key Points, Ask, Describe Images, Ask Your Library, and Brief Me.")
                     }
-                    Text("With Siri or Shortcuts, say \"Brief me with BlindRSS\", \"Summarize an article in BlindRSS\", \"Ask BlindRSS about an article\", \"How many unread articles in BlindRSS\", or \"Refresh BlindRSS\". Siri can also act on the article you are reading, and Spotlight finds recent articles.")
+                    if let cloudStatus = AppleIntelligence.privateCloudStatus {
+                        Toggle("Use Private Cloud Compute", isOn: $privateCloudEnabled)
+                            .accessibilityHint("Sends long articles and library questions to Apple's larger server model, which keeps them private. Off keeps everything on this device.")
+                        Text(cloudStatus)
+                        if AppleIntelligence.canIncreasePrivateCloudLimit {
+                            Button("Private Cloud Compute Limit Options") {
+                                AppleIntelligence.showPrivateCloudLimitOptions()
+                            }
+                            .accessibilityHint("Shows Apple's options for a higher daily limit.")
+                        }
+                    }
+                    Text("With Siri or Shortcuts, say \"Brief me with BlindRSS\", \"Summarize an article in BlindRSS\", \"Ask BlindRSS about an article\", \"Ask BlindRSS\" for your whole library, \"Describe the images in BlindRSS\", \"Search BlindRSS for\" a topic, \"How many unread articles in BlindRSS\", or \"Refresh BlindRSS\". Siri can also act on the article you are reading or the one you are on in a list, and Spotlight finds recent articles by their text.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } header: {

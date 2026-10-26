@@ -963,6 +963,36 @@ final class AppleIntelligenceTests: XCTestCase {
         XCTAssertEqual(AppleIntelligence.Request.keyPoints.heading, "Key Points")
     }
 
+    func testImageReferencesResolveSkipTrackersAndDuplicates() {
+        let html = "<p><img src='/a.jpg' alt='A &amp; B'>"
+            + "<img data-src=\"https://cdn.x/b.png\" src=\"data:image/gif;base64,AAA\">"
+            + "<img src=\"https://t.x/p.gif\" width=\"1\" height=\"1\"><IMG SRC=\"/a.jpg\">"
+            + "<img src=\"//cdn.x/c.webp\"></p>"
+        let refs = AppleIntelligence.imageReferences(inHTML: html, baseURL: URL(string: "https://site.com/news/story"))
+        XCTAssertEqual(refs.map(\.url.absoluteString), ["https://site.com/a.jpg", "https://cdn.x/b.png", "https://cdn.x/c.webp"])
+        XCTAssertEqual(refs.first?.alt, "A & B")
+        XCTAssertEqual(AppleIntelligence.imageReferences(inHTML: html, baseURL: nil, limit: 1).count, 0,
+                       "relative sources need the page address")
+    }
+
+    /// iOS 27 features fail with a spoken message, never a crash, when
+    /// the model cannot run (the test simulator has none).
+    func testLibraryQuestionsAndImageDescriptionsFailCleanly() async {
+        guard !AppleIntelligence.status.isAvailable else { return }
+        do {
+            _ = try await AppleIntelligence.askLibrary("What is new?")
+            XCTFail("askLibrary should throw without a model")
+        } catch {
+            XCTAssertFalse(error.localizedDescription.isEmpty)
+        }
+        do {
+            _ = try await AppleIntelligence.describeImages(html: "<img src=\"https://x.com/a.jpg\">", pageURL: "https://x.com/")
+            XCTFail("describeImages should throw without a model")
+        } catch {
+            XCTAssertFalse(error.localizedDescription.isEmpty)
+        }
+    }
+
     /// The test simulator has no Apple Intelligence model: every request
     /// must fail with the spoken status message, never crash or hang.
     func testUnavailableModelFailsWithStatusMessage() async {
