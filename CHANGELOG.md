@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.13
+
+Research round: the 0.1.12 "not ported" list was re-examined item by item (web and code-host research recorded in AUDIT.md), and everything the research unlocked is now ported.
+
+- YouTube streams: videos now resolve to native streams (YouTubeKit, a maintained Swift extractor) and play in the app's own player with resume, speed, and chapters — Play Stream in the reader — and can be downloaded for offline listening with Download Stream. The embedded web player remains for watching.
+- SponsorBlock: sponsor, intro, outro, and other community-marked segments are skipped automatically during stream playback (Settings, Player, on by default), announced as they are skipped.
+- Video Search: Discover searches YouTube videos by name; a result opens with its player, stream playback, and transcript.
+- Google Cast: the player gains a Google Cast button beside AirPlay. It uses Google's default media receiver, so no account or developer registration is needed; starting a Cast session sends the current episode to the device and pauses local playback.
+- Article translation: the reader's Translate button translates the article into your device language through public keyless translation services (Lingva, with LibreTranslate mirrors as fallback). No API key or account. Show Original switches back.
+- Lemmy threads: a Lemmy post article gains a Thread section — Load Thread fetches its comments from the instance's public API, indented by reply depth.
+- SoundCloud and Mixcloud subscriptions: pasting a SoundCloud profile subscribes through SoundCloud's native RSS for that artist; pasting a Mixcloud profile subscribes to their uploads through Mixcloud's public API.
+- Awesome RSS catalogue: Discover can browse the curated Awesome RSS collection by country (25) and topic (41); each list downloads only when opened, and its feeds subscribe with one tap.
+- Interface translations: the app now ships the desktop's 15 translations as an Apple String Catalog (converted from the gettext catalogs by tools/po2xcstrings.py). Interface text that matches the desktop app — buttons, titles, settings — follows your device language. A few iOS-only strings and spoken announcements remain English for now.
+- Still blocked, with the evidence in AUDIT.md: YouTube account sign-in and recommendations (needs an OAuth client id from a Google Cloud project registered by the owner), Reddit comment threads (Reddit shut down unauthenticated access in 2026; its API needs a registered app), Rumble/Odysee stream extraction (no maintained Swift path), and DLNA/Kodi casting (the desktop's separate Caster engine).
+
+
 ## 0.1.12
 
 Desktop parity release: BlindRSS for iOS now matches the desktop app (v2.5.x) on everything portable to iOS.
