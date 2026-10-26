@@ -825,3 +825,103 @@ final class LaunchConfigurationTests: XCTestCase {
                       "No launch screen declared: iOS will letterbox the app instead of using the full screen.")
     }
 }
+
+
+/// Full-text extraction across split containers (0.1.16). News bodies
+/// routinely live in sibling containers — a standfirst block, body
+/// sections in separate wrappers, promo boxes in between — and reading
+/// only the single winning container silently dropped the rest, which
+/// is how Al Jazeera articles arrived incomplete. These fixtures pin
+/// the Readability-style sibling append and its junk gates.
+final class FullTextExtractionTests: XCTestCase {
+    private func extractedText(_ html: String) -> String {
+        HTMLText.articleBlocks(fromPage: html).map(\.text).joined(separator: "\n")
+    }
+
+    func testSplitBodyAcrossSiblingContainersIsFullyRecovered() {
+        let html = """
+        <html><body>
+        <div class="page-wrap">
+          <div class="top-nav"><ul>
+            <li><a href="https://example.com/1">World news section home page link</a></li>
+            <li><a href="https://example.com/2">Politics coverage and analysis link</a></li>
+            <li><a href="https://example.com/3">Business markets data and reports link</a></li>
+            <li><a href="https://example.com/4">Culture arts books and film link text</a></li>
+            <li><a href="https://example.com/5">Sport results fixtures and tables link</a></li>
+            <li><a href="https://example.com/6">Weather forecast for your region link</a></li>
+            <li><a href="https://example.com/7">Video reports and documentaries link</a></li>
+            <li><a href="https://example.com/8">Live blogs and breaking news link text</a></li>
+          </ul></div>
+          <div class="standfirst"><p>Standfirst marker sentence: the council decision, announced late on Monday evening, ends months of speculation about the harbour project, its funding, and the people who depend on the water.</p></div>
+          <div class="article-body-text">
+            <p>Body paragraph one marker, which explains what the council actually decided on Monday, and why the vote mattered so much to the residents of the harbour district.</p>
+            <p>Body paragraph two marker, with reaction from the harbour authority, local fishers, business owners along the quay, and the provincial government minister.</p>
+            <p>Body paragraph three marker, covering the full cost of the project, the timeline for construction work, the detours planned for ferries, and the next public meeting.</p>
+            <p>Body paragraph four marker, noting the opposition response in the chamber, the legal challenge that may follow the vote, and what the mayor promised happens now.</p>
+            <p>Body paragraph five marker, returning to the crews who work on the water every morning, and what the decision means for their boats, their buyers, and their season.</p>
+          </div>
+          <div class="promo-box"><p>Promo marker sentence: subscribe today for unlimited access to every story, every podcast, and the complete searchable archive of the paper, forever.</p></div>
+          <div class="article-body-text">
+            <p>Body paragraph six marker, closing the story with the date of the final vote, the margin recorded in the chamber, and the reaction from the public gallery.</p>
+            <p>Body paragraph seven marker, an editor note explaining how the reporting was done, who was interviewed for the story, and how readers can respond to it.</p>
+          </div>
+        </div>
+        </body></html>
+        """
+        let text = extractedText(html)
+        XCTAssertTrue(text.contains("Standfirst marker sentence"), "standfirst sibling was dropped")
+        XCTAssertTrue(text.contains("Body paragraph one marker"))
+        XCTAssertTrue(text.contains("Body paragraph five marker"))
+        XCTAssertTrue(text.contains("Body paragraph six marker"), "second body container was dropped")
+        XCTAssertTrue(text.contains("Body paragraph seven marker"))
+        XCTAssertFalse(text.contains("Promo marker sentence"), "promo sibling leaked into the article")
+        XCTAssertFalse(text.contains("World news section home page link"), "navigation leaked into the article")
+        let standfirst = text.range(of: "Standfirst marker sentence")!.lowerBound
+        let firstBody = text.range(of: "Body paragraph one marker")!.lowerBound
+        let lastBody = text.range(of: "Body paragraph seven marker")!.lowerBound
+        XCTAssertTrue(standfirst < firstBody && firstBody < lastBody, "blocks out of document order")
+    }
+
+    func testSingleContainerArticleStillExtracts() {
+        let html = """
+        <html><body>
+        <div class="site-header"><ul><li><a href="https://example.com/nav">Header navigation link label</a></li></ul></div>
+        <main id="main-content-area"><div class="container container--article">
+        <div class="wysiwyg wysiwyg--all-content">
+        <p>Wysiwyg paragraph one marker, the opening of a wire story about the court ruling, with the judge quoted directly in the second sentence of the report.</p>
+        <p>Wysiwyg paragraph two marker, adding the background of the case, the earlier hearings held in the spring, and the arguments made by both legal teams.</p>
+        <p>Wysiwyg paragraph three marker, ending the story with the reaction from the family, the statement from the department, and the date of the appeal.</p>
+        </div>
+        </div></main>
+        <div class="footer-block"><p>Footer marker sentence with the copyright line, the company registration details, and a long list of office addresses around the world.</p></div>
+        </body></html>
+        """
+        let text = extractedText(html)
+        XCTAssertTrue(text.contains("Wysiwyg paragraph one marker"))
+        XCTAssertTrue(text.contains("Wysiwyg paragraph two marker"))
+        XCTAssertTrue(text.contains("Wysiwyg paragraph three marker"))
+        XCTAssertFalse(text.contains("Footer marker sentence"))
+        XCTAssertGreaterThan(text.count, 300)
+    }
+
+    func testParagraphOutsideInnerWrapperIsNotCut() {
+        // The old tightest-inner step replaced the winner with an inner
+        // wrapper holding 75 percent of the text and lost the rest.
+        let html = """
+        <html><body>
+        <div class="article-body">
+          <div class="inner-wrap">
+            <p>Inner paragraph one marker, setting out the announcement from the ministry, the figures released with it, and the immediate market reaction.</p>
+            <p>Inner paragraph two marker, with the detail of the programme, the regions included in the first phase, and the eligibility rules for applicants.</p>
+            <p>Inner paragraph three marker, quoting the critics of the scheme, the unions representing the workers, and the audit office that reviewed it.</p>
+          </div>
+          <p>Closing paragraph marker, the part of the story that used to vanish, summing up what changes on the first of the month and who to contact.</p>
+        </div>
+        </body></html>
+        """
+        let text = extractedText(html)
+        XCTAssertTrue(text.contains("Inner paragraph one marker"))
+        XCTAssertTrue(text.contains("Inner paragraph three marker"))
+        XCTAssertTrue(text.contains("Closing paragraph marker"), "text outside the inner wrapper was cut")
+    }
+}

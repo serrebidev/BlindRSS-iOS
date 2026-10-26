@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.16
+
+Full text, made reliable — and read aloud in the article list.
+
+- Full-text recovery was rebuilt after an Al Jazeera article arrived incomplete. The extractor now follows Mozilla Readability's approach (researched against the current extraction landscape; no maintained native Swift port exists with a comparable track record, so the mechanics were ported into the app's own extractor): after the best-scoring container is chosen, its qualifying siblings are read too — a standfirst block, body sections in separate wrappers — because news stories are routinely split across sibling containers. The old step that shrank the result to a "tightest inner wrapper" is gone; it could silently cut the end of a story. Promo, navigation, and related boxes stay out, and unit tests pin the behaviour.
+- When a hosted account's server extraction comes back thin, the app now also fetches the page directly and keeps the longer result, instead of accepting a partial article.
+- The article list now reads the full text at the end of each item's announcement. Rows fetch their article's full text in the background as they appear; when VoiceOver lands on a row, the announcement ends with the complete article. If the fetch finishes while a row is focused, the full text is announced then. The reader shares the same cache, so an article opened from the list is already loaded in full.
+
+
 ## 0.1.15
 
 The app now uses the whole screen on every iPhone and iPad.

@@ -157,11 +157,11 @@ extension HTMLText {
         text.split(separator: "\n").map { ReaderBlock(isHeading: false, text: String($0)) }
     }
 
-    /// Readability-style extraction of the article in a web page, the same
-    /// scoring as BlindRSS for Android (FullText.extract). Scores containers
-    /// by real paragraph text, penalizes link-heavy boilerplate, then emits
-    /// headings and paragraphs in order. Stripping every tag of the whole
-    /// page, as before, read out menus, footers, and cookie banners.
+    /// Readability-style extraction of the article in a web page. Scores
+    /// containers by real paragraph text, penalizes link-heavy boilerplate,
+    /// then emits the winning container plus its qualifying siblings in
+    /// order. Stripping every tag of the whole page, as before, read out
+    /// menus, footers, and cookie banners.
     static func articleBlocks(fromPage html: String) -> [ReaderBlock] {
         let root = DOMNode.parse(html)
         var candidates: [DOMNode] = []
@@ -174,18 +174,24 @@ extension HTMLText {
             if node.attributes.range(of: Self.junkPattern, options: .regularExpression) != nil { score *= 0.25 }
             if score > bestScore { bestScore = score; best = node }
         }
-        // Prefer the tightest inner container that holds most of the winning
-        // paragraph text. Android compares boosted scores at half; that kept
-        // only one of two sibling content divs on Ars Technica.
-        if let winner = best {
-            var inner: [DOMNode] = []
-            winner.collect(into: &inner) {
-                ["article", "main", "div", "section"].contains($0.tag) && $0.paragraphScore >= winner.paragraphScore * 0.75
-            }
-            if let tightest = inner.min(by: { $0.textLength < $1.textLength }) { best = tightest }
-        }
         var blocks: [ReaderBlock] = []
-        (best ?? root).emitBlocks(into: &blocks, isRoot: true)
+        if let winner = best, let parent = winner.parent, parent !== root {
+            // Readability appends qualifying siblings of the top candidate:
+            // news bodies are routinely split across sibling containers
+            // (a standfirst block, body sections in separate wrappers,
+            // related boxes in between), so reading only the winning
+            // container silently drops the rest of the article.
+            for case .node(let sibling) in parent.children {
+                if sibling === winner {
+                    sibling.emitBlocks(into: &blocks, isRoot: true)
+                } else if siblingQualifies(sibling, winnerScore: bestScore) {
+                    sibling.emitBlocks(into: &blocks)
+                }
+            }
+            if blocks.isEmpty { winner.emitBlocks(into: &blocks, isRoot: true) }
+        } else {
+            (best ?? root).emitBlocks(into: &blocks, isRoot: true)
+        }
         // The winning container hid the text: fall back to every decent paragraph.
         if blocks.reduce(0, { $0 + $1.text.count }) < 200 {
             var paragraphs: [DOMNode] = []
@@ -194,6 +200,20 @@ extension HTMLText {
                 .flatMap { $0.split(separator: "\n") }.map { ReaderBlock(isHeading: false, text: String($0)) }
         }
         return blocks
+    }
+
+    /// Whether a sibling of the winning container carries article text
+    /// worth appending. Mirrors Readability's sibling rules: a real share
+    /// of the winner's paragraph score, or a long low-link stretch of
+    /// prose (a standfirst often scores as a single paragraph). A
+    /// junk-classed sibling needs a far stronger case, so promo and
+    /// related boxes stay out.
+    fileprivate static func siblingQualifies(_ node: DOMNode, winnerScore: Double) -> Bool {
+        let junkClassed = node.attributes.range(of: Self.junkPattern, options: .regularExpression) != nil
+        if node.paragraphScore >= max(40, winnerScore * (junkClassed ? 0.75 : 0.2)) { return true }
+        if junkClassed { return false }
+        return node.textLength >= 120
+            && Double(node.linkLength) / Double(max(1, node.textLength)) < 0.3
     }
 
     fileprivate static let junkPattern = "nav|menu|sidebar|footer|header|promo|related|comment|share|social|advert|cookie|popup|newsletter|subscribe"
@@ -211,6 +231,9 @@ private final class DOMNode {
     let tag: String
     /// Lowercased class and id, for the content and boilerplate patterns.
     let attributes: String
+    /// Set when attached during parsing; extraction walks it to reach
+    /// the winning container's siblings.
+    weak var parent: DOMNode?
     var children: [Child] = []
     private(set) var textLength = 0
     private(set) var linkLength = 0
@@ -323,6 +346,7 @@ private final class DOMNode {
             // Dropped subtrees are still pushed so their end tags match,
             // but never attached, so their text never counts.
             if !droppedTags.contains(name) {
+                node.parent = stack[stack.count - 1]
                 stack[stack.count - 1].children.append(.node(node))
             }
             let selfClosing = rawAttributes.hasSuffix("/")

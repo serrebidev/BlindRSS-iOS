@@ -81,7 +81,9 @@ struct ArticleReaderView: View {
                         Task {
                             isFetchingFullText = true
                             do {
-                                fullText = try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText)
+                                let fetched = try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText)
+                                fullText = fetched
+                                FullTextCache.shared.store(fetched, for: articleID)
                                 Announcer.announce("Full text loaded.")
                             } catch {
                                 Announcer.announce(error.localizedDescription)
@@ -257,6 +259,13 @@ struct ArticleReaderView: View {
         .accessibilityRotor("Chapters") {
             ForEach(article.chapters.sorted(by: { $0.start < $1.start })) { chapter in
                 AccessibilityRotorEntry(chapter.title, id: chapter.id)
+            }
+        }
+        .task {
+            // The article list prefetches full text into the shared
+            // cache; open with it already loaded when it is there.
+            if fullText == nil, let cached = FullTextCache.shared.blocks(for: article.id) {
+                fullText = cached
             }
         }
         .toolbar {

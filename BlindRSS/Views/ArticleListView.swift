@@ -171,7 +171,11 @@ private struct ArticleRow: View {
     @State private var store = LibraryStore()
     @State private var showingShare = false
     @State private var confirmingDelete = false
+    @AccessibilityFocusState private var voFocused: Bool
     @AppStorage("confirmDeleteArticles") private var confirmDelete = true
+
+    /// The article's recovered full text, once the shared cache has it.
+    private var spokenFullText: String? { FullTextCache.shared.spokenText(for: article.id) }
 
     let article: Article
     let actionOrder: [ArticleAction]
@@ -219,6 +223,21 @@ private struct ArticleRow: View {
         .accessibilityHint(article.hasMedia ? "Plays the episode and opens its notes. Shows article actions."
                                             : "Shows article actions.")
         .accessibilityAddTraits(.isButton)
+        .accessibilityFocused($voFocused)
+        .onAppear {
+            // Text articles prefetch their full text as rows appear, so
+            // it is ready to be read at the end of the row's announcement.
+            if !article.hasMedia {
+                let content = HTMLText.plainText(from: article.content)
+                let feedText = content.isEmpty ? HTMLText.plainText(from: article.summary) : content
+                FullTextCache.shared.prefetch(articleID: article.id, url: article.url, feedText: feedText)
+            }
+        }
+        .onChange(of: spokenFullText) { _, newText in
+            // The fetch finished while this row holds VoiceOver focus:
+            // read the full text now, after the row's own announcement.
+            if voFocused, let newText, !newText.isEmpty { Announcer.announce(newText) }
+        }
         // Touch swipe actions (sighted and low-vision path).
         .touchSwipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
@@ -314,6 +333,9 @@ private struct ArticleRow: View {
         parts.append(article.isRead ? "read" : "unread")
         if article.isFavorite { parts.append("favorite") }
         if article.hasMedia { parts.append("has audio") }
+        // The full text goes last: VoiceOver reads the label, then the
+        // value, so it is heard at the end of the row's announcement.
+        if let fullText = spokenFullText, !fullText.isEmpty { parts.append(fullText) }
         return parts.joined(separator: ", ")
     }
 }

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+import Observation
 
 /// Media downloads (desktop Downloading Media). Files land in
 /// Documents/Downloads so downloaded episodes play offline and can use
@@ -87,19 +88,29 @@ enum FullTextService {
     /// the Article: this runs off the main actor, where SwiftData models
     /// must not be read.
     static func fetchFullText(articleID: String, url: String, feedText: String) async throws -> [ReaderBlock] {
-        var blocks: [ReaderBlock] = []
+        var best: [ReaderBlock] = []
         if articleID.hasPrefix("miniflux:"), let config = HostedConfig.load(), config.kind == .miniflux,
            let html = try? await minifluxContent(entryID: String(articleID.dropFirst("miniflux:".count)), config: config) {
-            blocks = HTMLText.articleBlocks(fromPage: html)
+            best = HTMLText.articleBlocks(fromPage: html)
         }
-        if textLength(blocks) < 200 {
-            guard let pageURL = URL(string: url), pageURL.scheme?.hasPrefix("http") == true else { throw Failure.noLink }
-            blocks = HTMLText.articleBlocks(fromPage: try await fetchPage(pageURL))
+        // A thin server extraction is often only part of the article (the
+        // site truncated what its fetcher saw), so anything short still
+        // earns a direct fetch and the longer result wins.
+        var directError: Error?
+        if textLength(best) < 1000 {
+            if let pageURL = URL(string: url), pageURL.scheme?.hasPrefix("http") == true {
+                do {
+                    let direct = HTMLText.articleBlocks(fromPage: try await fetchPage(pageURL))
+                    if textLength(direct) > textLength(best) { best = direct }
+                } catch { directError = error }
+            } else if best.isEmpty {
+                throw Failure.noLink
+            }
         }
-        let length = textLength(blocks)
-        guard length >= 200 else { throw Failure.noArticle }
+        let length = textLength(best)
+        guard length >= 200 else { throw (directError as? Failure) ?? Failure.noArticle }
         guard length > feedText.count else { throw Failure.notLonger }
-        return blocks
+        return best
     }
 
     private static func textLength(_ blocks: [ReaderBlock]) -> Int {
@@ -193,4 +204,51 @@ enum FullTextService {
 
 private struct MinifluxFetchedContent: Decodable {
     let content: String
+}
+
+/// Session cache of recovered full text, shared by the article list
+/// (which reads the full text at the end of each row's announcement)
+/// and the reader (which then opens with the text already loaded).
+/// Stores reader blocks; the spoken form joins them in order.
+@MainActor
+@Observable
+final class FullTextCache {
+    static let shared = FullTextCache()
+
+    private(set) var blocksByID: [String: [ReaderBlock]] = [:]
+    private var order: [String] = []
+    private var inFlight: Set<String> = []
+    private let limit = 200
+
+    func blocks(for articleID: String) -> [ReaderBlock]? { blocksByID[articleID] }
+
+    func spokenText(for articleID: String) -> String? {
+        blocksByID[articleID].map { $0.map(\.text).joined(separator: "\n") }
+    }
+
+    func store(_ blocks: [ReaderBlock], for articleID: String) {
+        if blocksByID[articleID] == nil { order.append(articleID) }
+        blocksByID[articleID] = blocks
+        while order.count > limit { blocksByID.removeValue(forKey: order.removeFirst()) }
+    }
+
+    /// Fetches in the background when needed. When the feed already
+    /// carries the full article (the fetch reports notLonger), the feed
+    /// text itself is cached as the full text, so the list announcement
+    /// and the reader both use the longest version available. Failures
+    /// stay silent here; the reader's Fetch Full Text button reports
+    /// them when the user asks directly.
+    func prefetch(articleID: String, url: String, feedText: String) {
+        guard blocksByID[articleID] == nil, !inFlight.contains(articleID) else { return }
+        inFlight.insert(articleID)
+        Task {
+            defer { inFlight.remove(articleID) }
+            do {
+                store(try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText),
+                      for: articleID)
+            } catch FullTextService.Failure.notLonger {
+                store(HTMLText.blocks(fromPlainText: feedText), for: articleID)
+            } catch {}
+        }
+    }
 }
