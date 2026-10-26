@@ -31,6 +31,8 @@ struct ArticleListView: View {
     @State private var mediaFilter = "all"
     @State private var sortNewestFirst = true
     @AppStorage(ArticleAction.storageKey) private var storedActionOrder = ""
+    @AppStorage("appleIntelligence.enabled") private var appleIntelligenceEnabled = true
+    @State private var showingBriefing = false
 
     let selection: LibrarySelection
     let feed: Feed?
@@ -85,8 +87,11 @@ struct ArticleListView: View {
 
     var body: some View {
         let articles = filteredArticles()
+        // Checked once per render, not per row.
+        let offersAppleIntelligence = appleIntelligenceEnabled && AppleIntelligence.isSupported
         // Parsed once per render and shared by every row.
         let actionOrder = ArticleAction.order(from: storedActionOrder)
+            .filter { $0 != .summarize || offersAppleIntelligence }
         Group {
             if articles.isEmpty {
                 ContentUnavailableView("No Articles", systemImage: "doc.text",
@@ -158,6 +163,66 @@ struct ArticleListView: View {
                 }
                 .accessibilityHint("Filters by media and changes sort order.")
             }
+            if offersAppleIntelligence, !articles.isEmpty {
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        showingBriefing = true
+                    } label: {
+                        Label("Brief Me", systemImage: "newspaper")
+                    }
+                    .accessibilityHint("Apple Intelligence sums up the newest unread articles in this list.")
+                }
+            }
+        }
+        .sheet(isPresented: $showingBriefing) {
+            // The newest unread articles here, or the newest of any when
+            // everything is read.
+            let unread = articles.filter { !$0.isRead }
+            let chosen = Array((unread.isEmpty ? articles : unread).prefix(30))
+            AppleIntelligenceSheet(title: "Briefing") {
+                try await AppleIntelligence.briefing(of: chosen)
+            }
+        }
+    }
+}
+
+/// An Apple Intelligence result in a sheet: progress while the model
+/// works, then the answer one line per paragraph or point, spoken when
+/// it arrives.
+struct AppleIntelligenceSheet: View {
+    let title: String
+    let work: @MainActor () async throws -> String
+    @State private var lines: [String]?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let lines {
+                        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                            Text(line).textSelection(.enabled)
+                        }
+                    } else {
+                        ProgressView("Apple Intelligence is working")
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .writingTools()
+            .navigationTitle(title)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .task {
+                let result: String
+                do { result = try await work() } catch { result = error.localizedDescription }
+                lines = result.components(separatedBy: "\n")
+                Announcer.announce(result)
+            }
         }
     }
 }
@@ -170,6 +235,7 @@ private struct ArticleRow: View {
     @Environment(\.openURL) private var openURL
     @State private var store = LibraryStore()
     @State private var showingShare = false
+    @State private var showingSummary = false
     @State private var confirmingDelete = false
     @AccessibilityFocusState private var voFocused: Bool
     @AppStorage("confirmDeleteArticles") private var confirmDelete = true
@@ -275,6 +341,12 @@ private struct ArticleRow: View {
             }
         }
         .shareSheet(isPresented: $showingShare, urlString: article.url)
+        .sheet(isPresented: $showingSummary) {
+            AppleIntelligenceSheet(title: "Summary") {
+                try await AppleIntelligence.run(.summary, title: article.title,
+                                                text: await AppleIntelligence.readableText(of: article))
+            }
+        }
         .confirmationDialog("Delete Article", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { store.deleteArticle(article, in: context) }
             Button("Cancel", role: .cancel) {}
@@ -295,7 +367,7 @@ private struct ArticleRow: View {
             return article.isRead ? "Mark Unread" : "Mark Read"
         case .favorite:
             return article.isFavorite ? "Remove Favorite" : "Favorite"
-        case .read, .delete:
+        case .read, .delete, .summarize:
             return action.title
         }
     }
@@ -314,6 +386,7 @@ private struct ArticleRow: View {
             Announcer.announce("Link copied.")
         case .share: showingShare = true
         case .delete: requestDelete()
+        case .summarize: showingSummary = true
         }
     }
 
@@ -346,7 +419,7 @@ private struct ArticleRow: View {
 /// Download, and Copy Link come first by default; Settings, Article Actions
 /// reorders.
 enum ArticleAction: String, CaseIterable, Identifiable {
-    case openInBrowser, download, copyLink, read, toggleRead, favorite, play, addToQueue, share, delete
+    case openInBrowser, download, copyLink, read, toggleRead, favorite, play, addToQueue, share, delete, summarize
 
     static let storageKey = "articleActionOrder"
 
@@ -364,6 +437,7 @@ enum ArticleAction: String, CaseIterable, Identifiable {
         case .copyLink: return "Copy Link"
         case .share: return "Share"
         case .delete: return "Delete"
+        case .summarize: return "Summarize with Apple Intelligence"
         }
     }
 
@@ -379,6 +453,7 @@ enum ArticleAction: String, CaseIterable, Identifiable {
         case .copyLink: return "doc.on.doc"
         case .share: return "square.and.arrow.up"
         case .delete: return "trash"
+        case .summarize: return "text.append"
         }
     }
 

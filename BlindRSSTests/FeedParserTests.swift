@@ -925,3 +925,55 @@ final class FullTextExtractionTests: XCTestCase {
         XCTAssertTrue(text.contains("Closing paragraph marker"), "text outside the inner wrapper was cut")
     }
 }
+
+/// Apple Intelligence (0.1.17): the pure parts around the model calls.
+final class AppleIntelligenceTests: XCTestCase {
+    func testCleanOutputDropsMarkdownForVoiceOver() {
+        let raw = "## Summary\n- **First** point\n\n* Second __point__\n• Third\n1. Numbered stays"
+        XCTAssertEqual(AppleIntelligence.cleanOutput(raw),
+                       "Summary\nFirst point\nSecond point\nThird\n1. Numbered stays")
+    }
+
+    func testEmptyNoteDetection() {
+        XCTAssertTrue(AppleIntelligence.isEmptyNote("NONE"))
+        XCTAssertTrue(AppleIntelligence.isEmptyNote(" none. "))
+        XCTAssertTrue(AppleIntelligence.isEmptyNote(""))
+        XCTAssertFalse(AppleIntelligence.isEmptyNote("The bridge closed on Monday."))
+    }
+
+    func testBriefingTextCapsArticlesAndSnippets() {
+        let items = (1...5).map { (title: "Title \($0)", feed: $0 == 1 ? "" : "Feed", snippet: String(repeating: "x", count: 300)) }
+        let text = AppleIntelligence.briefingText(for: items, limit: 3, snippetLength: 10)
+        let lines = text.components(separatedBy: "\n")
+        XCTAssertEqual(lines.count, 3)
+        XCTAssertEqual(lines[0], "Title 1. xxxxxxxxxx")
+        XCTAssertEqual(lines[1], "Feed: Title 2. xxxxxxxxxx")
+    }
+
+    func testVisualSearchRelevanceCountsSharedWords() {
+        XCTAssertEqual(AppleIntelligence.relevance(of: "Golden Gate Bridge closes for repairs", to: ["Golden Gate Bridge"]), 3)
+        XCTAssertEqual(AppleIntelligence.relevance(of: "A cat naps", to: ["dog"]), 0)
+        // Short words ("a", "of") never count as a match.
+        XCTAssertEqual(AppleIntelligence.relevance(of: "A day of rain", to: ["a", "of"]), 0)
+    }
+
+    func testPromptsCarryTheQuestionAndTitle() {
+        XCTAssertTrue(AppleIntelligence.notesPrompt(for: .question("Who won?"), chunk: "text").contains("Who won?"))
+        XCTAssertTrue(AppleIntelligence.finalPrompt(for: .summary, title: "Headline", text: "Body").contains("Title: Headline"))
+        XCTAssertEqual(AppleIntelligence.Request.keyPoints.heading, "Key Points")
+    }
+
+    /// The test simulator has no Apple Intelligence model: every request
+    /// must fail with the spoken status message, never crash or hang.
+    func testUnavailableModelFailsWithStatusMessage() async {
+        let status = AppleIntelligence.status
+        XCTAssertFalse(status.message.isEmpty)
+        guard !status.isAvailable else { return }
+        do {
+            _ = try await AppleIntelligence.run(.summary, title: "T", text: "Some text.")
+            XCTFail("run should throw when the model is unavailable")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, status.message)
+        }
+    }
+}

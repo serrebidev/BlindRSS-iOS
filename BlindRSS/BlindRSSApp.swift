@@ -17,16 +17,7 @@ struct BlindRSSApp: App {
         CastService.player = player
     }
     @Environment(\.scenePhase) private var scenePhase
-    /// Shared with background refresh, which runs without the window.
-    private let container: ModelContainer = {
-        do {
-            return try ModelContainer(for: Feed.self, Article.self, Category.self,
-                                      Chapter.self, PlaybackState.self, DeletedArticle.self,
-                                      SmartFolder.self, FilterRule.self, SavedSearch.self)
-        } catch {
-            fatalError("The library could not be opened: \(error)")
-        }
-    }()
+    private let container = LibraryContainer.shared
 
     var body: some Scene {
         WindowGroup {
@@ -42,6 +33,30 @@ struct BlindRSSApp: App {
             await BackgroundRefresh.run(container: container)
         }
     }
+}
+
+/// The one library store, shared by the window, background refresh, and
+/// Siri and Shortcuts intents (which run without the window).
+enum LibraryContainer {
+    static let shared: ModelContainer = {
+        do {
+            return try ModelContainer(for: Feed.self, Article.self, Category.self,
+                                      Chapter.self, PlaybackState.self, DeletedArticle.self,
+                                      SmartFolder.self, FilterRule.self, SavedSearch.self)
+        } catch {
+            fatalError("The library could not be opened: \(error)")
+        }
+    }()
+}
+
+/// Requests from outside the window (Siri, Spotlight, visual
+/// intelligence) that the window carries out.
+@MainActor
+@Observable
+final class AppNavigator {
+    static let shared = AppNavigator()
+    /// Set by OpenArticleIntent; ContentView opens the article and clears it.
+    var articleIDToOpen: String?
 }
 
 /// Refresh while the app is closed (iOS Background App Refresh). iOS picks
@@ -67,5 +82,6 @@ enum BackgroundRefresh {
         guard !feeds.isEmpty else { return }
         // New articles raise a notification when that setting is on.
         await LibraryStore().refreshAll(feeds: feeds, in: context, quiet: true)
+        await SpotlightIndex.update()
     }
 }

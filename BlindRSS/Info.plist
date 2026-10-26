@@ -19,6 +19,11 @@
 	<dict/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>BlindRSS uses the local network to find Chromecast and Google TV devices for Google Cast playback.</string>
+	<!-- The open article, for Siri onscreen awareness (ArticleReaderView). -->
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>org.serrebidev.BlindRSS.article</string>
+	</array>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_googlecast._tcp</string>

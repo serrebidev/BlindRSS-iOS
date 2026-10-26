@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.17
+
+Apple Intelligence. Everything runs privately on your device with Apple's on-device model; there is no account, key, or cloud service. Needs iOS 26 on an Apple Intelligence device with Apple Intelligence turned on. On anything else the app works as before, and Settings, Apple Intelligence and Siri says exactly why the features are missing (device not supported, Apple Intelligence off, or the model still downloading).
+
+- Reader: a new Apple Intelligence section with Summarize, Key Points, and an Ask about this article box. Answers appear under their own heading, one line per point, and VoiceOver speaks them when they arrive. Feeds that send only a teaser get their full article recovered first, and YouTube videos include their transcript, so summaries cover the whole piece.
+- Article lists: Brief Me (in the toolbar's more menu) gives a short spoken briefing of the newest unread articles in the list, grouped by topic. Every article row has a new VoiceOver action, Summarize with Apple Intelligence; reorder it in Settings, Article Actions.
+- Siri and Shortcuts, no setup needed: "Brief me with BlindRSS", "Summarize an article in BlindRSS", "Ask BlindRSS about an article", "How many unread articles in BlindRSS", "Refresh BlindRSS", "Add a feed to BlindRSS", and "Open an article in BlindRSS". They also appear in the Shortcuts app and can go on the Action button. Brief Me falls back to reading the headlines when the model cannot run.
+- Siri onscreen awareness (iOS 18.2 and later): the open article is shared with Siri, so requests about "this article" act on it.
+- Spotlight finds your recent articles by title and feed (iOS 18 and later); choosing one opens it in BlindRSS. Visual intelligence (iOS 26) offers articles whose titles match what the camera or a screenshot shows.
+- Writing Tools work on selected article text (iOS 18 and later).
+- Translate now tries Apple's on-device translation first when both languages are downloaded on the device, then falls back to the public translation services as before.
+- Long articles are handled in pieces: the on-device model has a small context window, so long text is condensed section by section and then answered, and the pieces shrink automatically if a language needs more room. News about crime, war, or politics is summarized rather than refused, using Apple's content-transformation guardrails for summarizing text you supply.
+
 ## 0.1.16
 
 Full text, made reliable — and read aloud in the article list.

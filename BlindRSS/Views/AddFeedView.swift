@@ -120,6 +120,7 @@ struct SettingsView: View {
     @AppStorage("reader.quotes") private var readerQuotes = false
     @AppStorage("reader.links") private var readerLinks = false
     @AppStorage("reader.altText") private var readerAltText = false
+    @AppStorage("appleIntelligence.enabled") private var appleIntelligenceEnabled = true
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -240,6 +241,20 @@ struct SettingsView: View {
                     .accessibilityLabel("Search covers")
                 } header: {
                     Text("Reading")
+                        .accessibilityAddTraits(.isHeader)
+                }
+
+                Section {
+                    Text(AppleIntelligence.status.message)
+                    if AppleIntelligence.isSupported {
+                        Toggle("Apple Intelligence actions", isOn: $appleIntelligenceEnabled)
+                            .accessibilityHint("Shows Summarize, Key Points, Ask, and Brief Me. Everything runs privately on this device.")
+                    }
+                    Text("With Siri or Shortcuts, say \"Brief me with BlindRSS\", \"Summarize an article in BlindRSS\", \"Ask BlindRSS about an article\", \"How many unread articles in BlindRSS\", or \"Refresh BlindRSS\". Siri can also act on the article you are reading, and Spotlight finds recent articles.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Apple Intelligence and Siri")
                         .accessibilityAddTraits(.isHeader)
                 }
 

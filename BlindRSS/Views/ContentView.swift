@@ -23,6 +23,8 @@ struct ContentView: View {
     @AppStorage("refreshOnStartup") private var refreshOnStartup = true
     @State private var autoRefresher = LibraryStore()
     @State private var didStartupRefresh = false
+    /// An article Siri, Spotlight, or visual intelligence asked to open.
+    @State private var requestedArticle: Article?
 
     private var selectedView: LibrarySelection {
         if case .library(let view)? = sidebarSelection { return view }
@@ -108,6 +110,38 @@ struct ContentView: View {
         // Automatic refresh (desktop refresh_interval) while the app is
         // open; BlindRSSApp asks iOS for background refreshes otherwise.
         .task(id: "\(refreshInterval) \(scenePhase == .active)") { await autoRefreshLoop() }
+        // Siri, Spotlight, and visual intelligence open articles here.
+        // A sheet, not the split view's selection: it works from any
+        // sidebar state on iPhone and iPad alike.
+        .task(id: AppNavigator.shared.articleIDToOpen) { openRequestedArticle() }
+        .sheet(item: $requestedArticle) { article in
+            NavigationStack {
+                ArticleReaderView(article: article)
+                    .navigationTitle(article.title)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { requestedArticle = nil }
+                        }
+                    }
+            }
+            .environment(player)
+        }
+    }
+
+    private func openRequestedArticle() {
+        guard let id = AppNavigator.shared.articleIDToOpen else { return }
+        AppNavigator.shared.articleIDToOpen = nil
+        let found = (try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.id == id }))) ?? []
+        guard let article = found.first else {
+            Announcer.announce("That article is no longer in BlindRSS.")
+            return
+        }
+        if !article.isRead {
+            article.isRead = true
+            article.openedAt = Date()
+            try? context.save()
+        }
+        requestedArticle = article
     }
 
     private func restoreSelection() {
@@ -194,6 +228,7 @@ struct ContentView: View {
         // Unstructured on purpose: leaving the app cancels the loop, and a
         // cancelled refresh would record every unfinished feed as failed.
         await Task { await autoRefresher.refreshAll(feeds: feeds, in: context, quiet: true) }.value
+        await SpotlightIndex.update()
     }
 
     /// Connects the player to SwiftData: resume positions, progress saves,

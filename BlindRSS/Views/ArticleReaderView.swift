@@ -2,6 +2,7 @@
 // This file is part of BlindRSS
 // SPDX-License-Identifier: MIT
 
+import AppIntents
 import SwiftUI
 
 /// Reading pane (desktop reading pane and article window). Continuous text
@@ -20,6 +21,11 @@ struct ArticleReaderView: View {
     @State private var threadLines: [String]?
     @State private var isFetchingThread = false
     @State private var isResolvingStream = false
+    @State private var aiHeading: String?
+    @State private var aiText: String?
+    @State private var isThinking = false
+    @State private var question = ""
+    @AppStorage("appleIntelligence.enabled") private var appleIntelligenceEnabled = true
     let article: Article
 
     private var youTubeID: String? { YouTubeService.videoID(from: article.url) }
@@ -118,7 +124,7 @@ struct ArticleReaderView: View {
                               systemImage: "character.bubble")
                     }
                     .disabled(isTranslating)
-                    .accessibilityHint("Translates this article into your device language with a public translation service. No account or key is needed.")
+                    .accessibilityHint("Translates this article into your device language: on this device with Apple Translate when both languages are downloaded, otherwise with a public translation service. No account or key is needed.")
                 }
 
                 if let youTubeID {
@@ -142,6 +148,10 @@ struct ArticleReaderView: View {
                         .disabled(isResolvingStream)
                         .accessibilityHint("Downloads this video's stream for offline listening.")
                     }
+                }
+
+                if appleIntelligenceEnabled, AppleIntelligence.isSupported {
+                    appleIntelligenceSection(bodyBlocks: bodyBlocks)
                 }
 
                 if !descriptionChapters.isEmpty, article.chapters.isEmpty {
@@ -255,6 +265,17 @@ struct ArticleReaderView: View {
             // size, iPhone SE through iPad Pro, portrait and landscape.
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Writing Tools (iOS 18) on selected article text: proofread,
+        // summarize, or rewrite a passage.
+        .writingTools()
+        // Siri onscreen awareness (iOS 18.2): "summarize this" or "send
+        // this to Mom" acts on the open article (ArticleEntity).
+        .userActivity("org.serrebidev.BlindRSS.article") { activity in
+            activity.title = article.title
+            if #available(iOS 18.2, *) {
+                activity.appEntityIdentifier = EntityIdentifier(for: ArticleEntity.self, identifier: article.id)
+            }
+        }
         // Chapters rotor: rotate to Chapters, swipe to jump between them.
         .accessibilityRotor("Chapters") {
             ForEach(article.chapters.sorted(by: { $0.start < $1.start })) { chapter in
@@ -286,6 +307,16 @@ struct ArticleReaderView: View {
     private func translateBody(blocks: [ReaderBlock]) async {
         let target = Locale.current.language.languageCode?.identifier ?? "en"
         isTranslating = true
+        // Apple Translate first: private, offline, and no rate limits,
+        // when the article's language and the device language are both
+        // downloaded on this device.
+        if let onDevice = await AppleIntelligence.translateOnDevice(blocks.map(\.text), to: Locale.current.language) {
+            translatedBlocks = zip(blocks, onDevice).map { ReaderBlock(isHeading: $0.isHeading, text: $1) }
+            showTranslation = true
+            isTranslating = false
+            Announcer.announce("Translation loaded.")
+            return
+        }
         var result: [ReaderBlock] = []
         var failed = false
         for block in blocks {
@@ -303,6 +334,84 @@ struct ArticleReaderView: View {
             translatedBlocks = result
             showTranslation = true
             Announcer.announce("Translation loaded.")
+        }
+    }
+
+    /// Summarize, Key Points, and a question box (Apple Intelligence,
+    /// on device). The answer shows under its own heading, one line per
+    /// paragraph or point, and is spoken when it arrives.
+    @ViewBuilder
+    private func appleIntelligenceSection(bodyBlocks: [ReaderBlock]) -> some View {
+        Text("Apple Intelligence").font(.headline).accessibilityAddTraits(.isHeader)
+        HStack(spacing: 12) {
+            Button {
+                Task { await runAppleIntelligence(.summary, bodyBlocks: bodyBlocks) }
+            } label: {
+                Label("Summarize", systemImage: "text.append")
+            }
+            .accessibilityHint("Summarizes this article privately on this device with Apple Intelligence.")
+            Button {
+                Task { await runAppleIntelligence(.keyPoints, bodyBlocks: bodyBlocks) }
+            } label: {
+                Label("Key Points", systemImage: "list.bullet")
+            }
+            .accessibilityHint("Lists this article's key points with Apple Intelligence.")
+        }
+        .disabled(isThinking)
+        HStack(spacing: 12) {
+            TextField("Ask about this article", text: $question)
+                .textFieldStyle(.roundedBorder)
+                .submitLabel(.send)
+                .onSubmit { askQuestion(bodyBlocks: bodyBlocks) }
+                .accessibilityHint("Type a question, then send. Apple Intelligence answers from this article only.")
+            Button("Ask") { askQuestion(bodyBlocks: bodyBlocks) }
+                .disabled(isThinking || question.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        if isThinking {
+            ProgressView("Apple Intelligence is working")
+        }
+        if let aiHeading, let aiText {
+            Text(aiHeading).font(.headline).accessibilityAddTraits(.isHeader)
+            ForEach(Array(aiText.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
+                Text(line).textSelection(.enabled)
+            }
+        }
+    }
+
+    private func askQuestion(bodyBlocks: [ReaderBlock]) {
+        let asked = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !asked.isEmpty, !isThinking else { return }
+        Task { await runAppleIntelligence(.question(asked), bodyBlocks: bodyBlocks) }
+    }
+
+    /// Feeds often send only a teaser, so the full article is recovered
+    /// first (and shown); YouTube videos add their transcript.
+    private func runAppleIntelligence(_ request: AppleIntelligence.Request, bodyBlocks: [ReaderBlock]) async {
+        guard !isThinking else { return }
+        isThinking = true
+        defer { isThinking = false }
+        Announcer.announce("Apple Intelligence is working.")
+        var text = bodyBlocks.map(\.text).joined(separator: "\n")
+        if fullText == nil, !showTranslation {
+            text = await AppleIntelligence.readableText(of: article)
+            fullText = FullTextCache.shared.blocks(for: article.id)
+        }
+        if let youTubeID, transcript == nil {
+            transcript = await YouTubeService.transcriptParagraphs(videoID: youTubeID)
+        }
+        if let transcript, !transcript.isEmpty {
+            text += "\nTranscript:\n" + transcript.joined(separator: "\n")
+        }
+        do {
+            let result = try await AppleIntelligence.run(request, title: article.title, text: text)
+            aiHeading = request.heading
+            aiText = result
+            Announcer.announce("\(request.heading). \(result)")
+        } catch is CancellationError {
+        } catch {
+            aiHeading = "Apple Intelligence"
+            aiText = error.localizedDescription
+            Announcer.announce(error.localizedDescription)
         }
     }
 
@@ -333,5 +442,17 @@ struct ArticleReaderView: View {
             Announcer.announce("Could not resolve a downloadable stream for this video.")
         }
         isResolvingStream = false
+    }
+}
+
+extension View {
+    /// Full Apple Intelligence Writing Tools on this view's text (iOS 18).
+    @ViewBuilder
+    func writingTools() -> some View {
+        if #available(iOS 18, *) {
+            writingToolsBehavior(.complete)
+        } else {
+            self
+        }
     }
 }
