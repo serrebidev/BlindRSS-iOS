@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.18
+
+The iOS 27 Apple Intelligence features, and full text for news video pages. The app is now built with Xcode 27; it still runs on iOS 17, and each feature appears only where the system supports it.
+
+- Full text for video pages. Some news links are a video with a one-line caption and no written article (for example Reuters wire videos on The Globe and Mail). Fetch Full Text used to report that the feed already had the full article. Now the app finds the page's video, downloads its smallest version, and transcribes its soundtrack on the device (iOS 26 speech recognition, in the page's language). The reader shows the caption, then a Video transcript heading and the transcript in paragraphs. The video also becomes the article's media, so Play, Download, and the play queue work on it. Summarize and the other Apple Intelligence actions use the transcript too. On older systems the reader says the article is a video and offers Play.
+- Describe Images (iOS 27): Apple Intelligence describes each picture in an article for VoiceOver, using the page's alt text as a hint and reading text inside the image with Apple's on-device OCR tool. Also available from Siri: "Describe the images in BlindRSS".
+- Ask Your Library (iOS 27): ask a question about all your articles ("what did my feeds say about the trade talks this week?"). Apple Intelligence searches the articles BlindRSS puts in Spotlight and answers, naming the articles it used. It's in the feed list's More menu, and Siri can run it: "Ask BlindRSS".
+- Private Cloud Compute (iOS 27): when Apple allows the app to use its larger server model, long articles are summarized in one pass and library questions get stronger answers. Your data stays private. If it isn't available, you're offline, or today's limit is used up, everything falls back to the on-device model. Settings shows its status, has a switch, and offers Apple's option for a higher daily limit. Apple grants this only to approved apps, so builds installed through AltStore use the on-device model.
+- Search BlindRSS for a topic with Siri or Apple Intelligence: the app opens All Articles with the search filled in.
+- Siri now knows which article you're on in a list as well as in the reader (onscreen awareness, iOS 18.4 and later).
+- Spotlight entries now include the start of each article and its date, so recent articles can be found by what they say, not only their title.
+- Refresh Feeds from Siri or Shortcuts keeps running past the 30-second limit on iOS 27 and reports its progress, so large libraries finish.
+- Create Image (Image Playground, iOS 18.1 and later): makes an illustration from the article's ideas, with a Share Created Image button.
+- Apple Intelligence errors from iOS 27's new error type are spoken clearly, and context overflows there also trigger the automatic smaller-chunk retry.
+
 ## 0.1.17
 
 Apple Intelligence. Everything runs privately on your device with Apple's on-device model; there is no account, key, or cloud service. Needs iOS 26 on an Apple Intelligence device with Apple Intelligence turned on. On anything else the app works as before, and Settings, Apple Intelligence and Siri says exactly why the features are missing (device not supported, Apple Intelligence off, or the model still downloading).

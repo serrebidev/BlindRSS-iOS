@@ -31,6 +31,8 @@ New in 0.1.12 (desktop parity): discovery across every keyless desktop directory
 
 New in 0.1.17 (Apple Intelligence, iOS 26 on a supported device; private, on device, no account): Summarize, Key Points, and Ask about this article in the reader; Brief Me on the newest unread articles in any list; a Summarize action on every article row; Siri and Shortcuts ("Brief me with BlindRSS", "Summarize an article in BlindRSS", "Ask BlindRSS about an article", "How many unread articles in BlindRSS", "Refresh BlindRSS", "Add a feed to BlindRSS"); Siri onscreen awareness of the open article; recent articles in Spotlight; visual intelligence search of article titles; Writing Tools on article text; and Apple's on-device translation tried before the public translation services. On older systems the app works as before and Settings says why the features are missing.
 
+New in 0.1.18: news video pages get an on-device transcript as their full text, and their video becomes playable media; and the iOS 27 features: Describe Images, Ask Your Library (questions across every article), Private Cloud Compute when Apple allows it, Siri search, list onscreen awareness, richer Spotlight entries, long-running Siri refresh, and Image Playground.
+
 Not ported: Chromecast and DLNA casting (needs Google's Cast SDK and a Cast application id), direct YouTube stream extraction and stream-resolved features (no yt-dlp on iOS; videos play in the embedded player), and translations (desktop gettext catalogs need converting to String Catalogs). See [AUDIT.md](AUDIT.md).
 
 ## VoiceOver

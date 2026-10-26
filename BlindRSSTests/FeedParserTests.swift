@@ -997,8 +997,10 @@ final class AppleIntelligenceTests: XCTestCase {
         let refs = AppleIntelligence.imageReferences(inHTML: html, baseURL: URL(string: "https://site.com/news/story"))
         XCTAssertEqual(refs.map(\.url.absoluteString), ["https://site.com/a.jpg", "https://cdn.x/b.png", "https://cdn.x/c.webp"])
         XCTAssertEqual(refs.first?.alt, "A & B")
-        XCTAssertEqual(AppleIntelligence.imageReferences(inHTML: html, baseURL: nil, limit: 1).count, 0,
-                       "relative sources need the page address")
+        // Without the page address, relative sources are skipped and
+        // absolute ones still count toward the limit.
+        XCTAssertEqual(AppleIntelligence.imageReferences(inHTML: html, baseURL: nil, limit: 1).map(\.url.absoluteString),
+                       ["https://cdn.x/b.png"])
     }
 
     /// iOS 27 features fail with a spoken message, never a crash, when
