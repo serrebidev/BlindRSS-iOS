@@ -25,7 +25,7 @@ final class LibraryStore {
         (3600, "Every hour"), (7200, "Every 2 hours"), (86400, "Every day"),
     ]
     /// Desktop default refresh_interval is 300 seconds.
-    static let defaultRefreshInterval: Double = 300
+    nonisolated static let defaultRefreshInterval: Double = 300
 
     init(session: URLSession = .shared) { self.session = session }
 
@@ -203,9 +203,8 @@ final class LibraryStore {
             content.title = "BlindRSS"
             content.body = "\(notifyTotal) new articles."
             content.sound = .default
-            UNUserNotificationCenter.current().add(
-                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil),
-                withCompletionHandler: nil)
+            try? await UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
         }
     }
 
