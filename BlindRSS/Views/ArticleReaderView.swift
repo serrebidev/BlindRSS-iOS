@@ -249,9 +249,9 @@ struct ArticleReaderView: View {
                 }
             }
             .padding()
-            // Readable line length on iPad and in landscape, centered.
-            .frame(maxWidth: 700, alignment: .leading)
-            .frame(maxWidth: .infinity)
+            // Fluid width: the reader fills the window at every screen
+            // size, iPhone SE through iPad Pro, portrait and landscape.
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         // Chapters rotor: rotate to Chapters, swipe to jump between them.
         .accessibilityRotor("Chapters") {

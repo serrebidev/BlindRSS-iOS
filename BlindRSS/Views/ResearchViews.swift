@@ -154,8 +154,8 @@ struct VideoResultView: View {
                 }
             }
             .padding()
-            .frame(maxWidth: 700, alignment: .leading)
-            .frame(maxWidth: .infinity)
+            // Fluid width: fills the window at every screen size.
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle("Video")
     }

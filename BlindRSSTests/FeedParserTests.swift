@@ -811,3 +811,17 @@ final class YouTubeAuthTests: XCTestCase {
         XCTAssertEqual(results[0].publishedText, "2 days ago")
     }
 }
+
+
+/// Full-screen guard: iOS only runs an app at the device's native
+/// resolution when the app declares a launch screen. Without one the
+/// app is scaled into a legacy canvas and never fills the screen —
+/// the iPhone 17 Pro letterboxing fixed in 0.1.15. If this test fails,
+/// the launch screen declaration was lost; do not ship.
+final class LaunchConfigurationTests: XCTestCase {
+    func testAppDeclaresLaunchScreenForNativeFullScreen() {
+        let info = Bundle.main.infoDictionary ?? [:]
+        XCTAssertTrue(info["UILaunchScreen"] != nil || info["UILaunchStoryboardName"] != nil,
+                      "No launch screen declared: iOS will letterbox the app instead of using the full screen.")
+    }
+}

@@ -223,8 +223,7 @@ struct MiniPlayerView: View {
                 }
             }
         }
-        // Readable width on iPad; the bar itself still spans the window.
-        .frame(maxWidth: 700)
+        // Fluid width: the controls span the window at every screen size.
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)

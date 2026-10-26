@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.15
+
+The app now uses the whole screen on every iPhone and iPad.
+
+- Root cause of the letterboxing on iPhone 17 Pro: the app shipped without a declared launch screen. iOS only runs an app at the device's native resolution when it declares one; without it, the app was scaled into a smaller compatibility canvas with unused screen around it. The app now declares a launch screen (the Info.plist `UILaunchScreen` configuration Apple recommends for SwiftUI apps), so it renders at native size on everything from iPhone SE to the largest Pro Max, and on every iPad.
+- The article reader, video page, and mini-player no longer cap their content at a fixed 700-point width. They are fluid and fill the window at any size — iPhone landscape and iPad included — and keep adapting if the window is resized (Split View, Stage Manager).
+- A unit test now guards the launch screen declaration, so losing it fails CI instead of quietly shrinking the app again.
+
+
 ## 0.1.14
 
 YouTube account sign-in, from a source audit of SmartTube (recorded in AUDIT.md): SmartTube signs in with the OAuth device-code flow of YouTube's own TV app — no Google Cloud project, no personal API credential — so BlindRSS now does the same, implemented fresh in Swift.

@@ -11,6 +11,12 @@
 		<string>audio</string>
 		<string>fetch</string>
 	</array>
+	<!-- A declared launch screen is what opts the app into the device's
+	     native resolution. Without one, iOS runs the app in a scaled
+	     compatibility canvas and it never fills the screen (letterboxed
+	     on iPhone 17 Pro and every other current size). -->
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>BlindRSS uses the local network to find Chromecast and Google TV devices for Google Cast playback.</string>
 	<key>NSBonjourServices</key>
