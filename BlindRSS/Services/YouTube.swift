@@ -11,6 +11,79 @@ import WebKit
 /// embedded player (yt-dlp has no iOS equivalent), and chapters are
 /// parsed from timestamp lines in the description.
 enum YouTubeService {
+    // MARK: Transcript (desktop YouTube Transcript section)
+
+    /// Fetches the video's captions through the same keyless Innertube
+    /// route the desktop uses (services/youtube_service.py): player
+    /// response, caption track, json3 timed text, grouped into
+    /// paragraphs. Empty when the video has no captions.
+    static func transcriptParagraphs(videoID: String) async -> [String] {
+        var request = URLRequest(url: URL(string: "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8")!)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "videoId": videoID,
+            "context": ["client": ["clientName": "WEB", "clientVersion": "2.20251010.01.00", "hl": "en"]],
+            "contentCheckOk": true, "racyCheckOk": true,
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let trackURL = captionTrackURL(fromPlayerResponse: data),
+              let (captionData, captionResponse) = try? await URLSession.shared.data(from: trackURL),
+              (captionResponse as? HTTPURLResponse)?.statusCode == 200 else { return [] }
+        return parseTranscriptJSON3(captionData)
+    }
+
+    /// Picks the caption track from a player response: a human track
+    /// when one exists, the automatic (asr) track otherwise, matching
+    /// the desktop's preference order. Appends fmt=json3.
+    static func captionTrackURL(fromPlayerResponse data: Data) -> URL? {
+        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let captions = root["captions"] as? [String: Any],
+              let renderer = captions["playerCaptionsTracklistRenderer"] as? [String: Any],
+              let tracks = renderer["captionTracks"] as? [[String: Any]] else { return nil }
+        var automatic: String?
+        for track in tracks {
+            guard let base = track["baseUrl"] as? String, !base.isEmpty else { continue }
+            if (track["kind"] as? String) == "asr" {
+                if automatic == nil { automatic = base }
+            } else {
+                return URL(string: base + "&fmt=json3")
+            }
+        }
+        return automatic.map { URL(string: $0 + "&fmt=json3") } ?? nil
+    }
+
+    /// json3 timed text -> readable paragraphs: each event's segments
+    /// joined, music markers dropped, events accumulated into a
+    /// paragraph until a sentence ends past 200 characters.
+    static func parseTranscriptJSON3(_ data: Data) -> [String] {
+        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let events = root["events"] as? [[String: Any]] else { return [] }
+        var lines: [String] = []
+        for event in events {
+            guard let segs = event["segs"] as? [[String: Any]] else { continue }
+            let text = segs.compactMap { $0["utf8"] as? String }.joined()
+                .replacingOccurrences(of: "\n", with: " ")
+                .trimmingCharacters(in: .whitespaces)
+            guard !text.isEmpty, !(text.hasPrefix("[") && text.hasSuffix("]")) else { continue }
+            lines.append(text)
+        }
+        var paragraphs: [String] = []
+        var current = ""
+        for line in lines {
+            current = current.isEmpty ? line : current + " " + line
+            if current.count >= 200, let last = current.last, ".!?".contains(last) {
+                paragraphs.append(current)
+                current = ""
+            }
+        }
+        if !current.isEmpty { paragraphs.append(current) }
+        return paragraphs
+    }
+
     static func videoID(from urlString: String) -> String? {
         guard let url = URL(string: urlString), let host = url.host else { return nil }
         if host.contains("youtu.be") { return url.lastPathComponent }

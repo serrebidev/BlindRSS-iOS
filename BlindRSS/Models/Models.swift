@@ -20,6 +20,11 @@ final class Feed {
     var iconURL: String?
     /// BCP-47 tag the feed declares for its content, if any (desktop Feed.language).
     var language: String?
+    /// The description the feed itself publishes (desktop View Feed Description).
+    var feedDescription: String?
+    /// Whether new articles from this feed count toward the new-article
+    /// notification (desktop Feed Properties: notifications for this feed).
+    var notificationsEnabled: Bool = true
     var lastError: String?
     var lastErrorAt: Date?
     var lastSuccessAt: Date?
@@ -65,6 +70,15 @@ final class Article {
     var mediaType: String?
     /// Podcasting 2.0 chapters document URL from the feed, if any.
     var chapterURL: String?
+    /// Extra categories a Filter Rule labeled this article with (desktop
+    /// article_labels). The article also shows under these categories.
+    var labels: [String] = []
+    /// Category a Filter Rule moved this article to (desktop rule "move").
+    /// Shown there instead of only under its feed's category.
+    var movedCategory: String?
+    /// Moved out of its feed's list by the delete behaviour "move to
+    /// category": visible only under `movedCategory`.
+    var hiddenFromFeed: Bool = false
     /// Local filename in Documents/Downloads once the media is downloaded.
     var localFileName: String?
     var openedAt: Date?
@@ -193,8 +207,23 @@ final class SmartFolder {
     }
 }
 
+/// The combined effect of every Filter Rule that matched one article
+/// (desktop core/filters.py evaluate_pipeline). Boolean actions OR
+/// together, the last move wins, labels union in first-seen order.
+struct FilterEffects: Equatable {
+    var markRead = false
+    var favorite = false
+    var delete = false
+    var skipNotification = false
+    var moveCategory: String?
+    var labels: [String] = []
+}
+
 /// Desktop table: filter_rules (id, name, rule_json, actions_json, enabled, stop, position).
-/// Applied to articles as they arrive during refresh.
+/// Applied to articles as they arrive during refresh. The action set is the
+/// desktop one: mark read, favorite, delete, skip notification, move to a
+/// category, and label with a category; a rule flagged stop ends the
+/// pipeline for that article once it has matched.
 @Model
 final class FilterRule {
     @Attribute(.unique) var id: String
@@ -202,8 +231,19 @@ final class FilterRule {
     /// title, content, feed, or author
     var field: String
     var contains: String
-    /// markRead, favorite, or delete
+    /// Legacy single action (markRead, favorite, or delete) kept for rules
+    /// saved before the full action set; used when no do* flag is set.
     var action: String
+    var doMarkRead: Bool = false
+    var doFavorite: Bool = false
+    var doDelete: Bool = false
+    var skipNotification: Bool = false
+    /// Category to move matching articles to ("" = no move).
+    var moveCategory: String = ""
+    /// Category to also label matching articles with ("" = no label).
+    var labelCategory: String = ""
+    /// Stop processing later rules for an article this rule matched.
+    var stop: Bool = false
     var enabled: Bool
     var position: Int
 
@@ -228,6 +268,63 @@ final class FilterRule {
         default: haystack = article.title
         }
         return haystack.localizedCaseInsensitiveContains(contains)
+    }
+
+    /// This rule's boolean actions: the do* flags, falling back to the
+    /// legacy single action for rules saved before they existed.
+    var effectiveActions: (markRead: Bool, favorite: Bool, delete: Bool) {
+        if doMarkRead || doFavorite || doDelete { return (doMarkRead, doFavorite, doDelete) }
+        return (action == "markRead", action == "favorite", action == "delete")
+    }
+
+    /// True when the rule would do nothing (desktop rejects such rules).
+    var hasNoActions: Bool {
+        let actions = effectiveActions
+        return !actions.markRead && !actions.favorite && !actions.delete
+            && !skipNotification && moveCategory.isEmpty && labelCategory.isEmpty
+    }
+
+    /// Runs the ordered pipeline over one article (desktop evaluate_pipeline).
+    static func pipeline(rules: [FilterRule], article: Article) -> FilterEffects {
+        var effects = FilterEffects()
+        for rule in rules where rule.matches(article) {
+            let actions = rule.effectiveActions
+            effects.markRead = effects.markRead || actions.markRead
+            effects.favorite = effects.favorite || actions.favorite
+            effects.delete = effects.delete || actions.delete
+            effects.skipNotification = effects.skipNotification || rule.skipNotification
+            if !rule.moveCategory.isEmpty { effects.moveCategory = rule.moveCategory }
+            if !rule.labelCategory.isEmpty, !effects.labels.contains(rule.labelCategory) {
+                effects.labels.append(rule.labelCategory)
+            }
+            if rule.stop { break }
+        }
+        return effects
+    }
+}
+
+/// Desktop persistent searches: a saved search term kept as its own item,
+/// re-evaluated against the current articles whenever it is opened.
+@Model
+final class SavedSearch {
+    @Attribute(.unique) var id: String
+    var name: String
+    var term: String
+    var position: Int
+
+    init(name: String, term: String, position: Int = 0) {
+        self.id = UUID().uuidString
+        self.name = name
+        self.term = term
+        self.position = position
+    }
+
+    /// Same fields the article list search matches.
+    func matches(_ article: Article, titlesOnly: Bool = false) -> Bool {
+        if article.title.localizedCaseInsensitiveContains(term) { return true }
+        if titlesOnly { return false }
+        return article.content.localizedCaseInsensitiveContains(term)
+            || article.author.localizedCaseInsensitiveContains(term)
     }
 }
 

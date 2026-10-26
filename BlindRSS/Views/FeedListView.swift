@@ -12,6 +12,7 @@ import UIKit
 struct FeedListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Feed.title) private var feeds: [Feed]
+    @Query(sort: \SavedSearch.position) private var savedSearches: [SavedSearch]
     @State private var store = LibraryStore()
     @State private var showingAddFeed = false
     @State private var showingSettings = false
@@ -105,6 +106,38 @@ struct FeedListView: View {
                         .accessibilityAddTraits(.isHeader)
                 }
 
+                // Desktop's saved Searches and the article Categories
+                // (feed categories, rule moves and labels) are browsable
+                // from the tree as well.
+                if !savedSearches.isEmpty {
+                    Section {
+                        ForEach(savedSearches) { search in
+                            Label(search.name, systemImage: "magnifyingglass")
+                                .tag(SidebarItem.savedSearch(search))
+                                .accessibilityLabel("Search: \(search.name)")
+                                .accessibilityAddTraits(.isButton)
+                        }
+                    } header: {
+                        Text("Searches")
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                }
+
+                let browsableCategories = articleCategories()
+                if !browsableCategories.isEmpty {
+                    Section {
+                        ForEach(browsableCategories, id: \.self) { name in
+                            Label(name, systemImage: "tag")
+                                .tag(SidebarItem.category(name))
+                                .accessibilityLabel("Category: \(name)")
+                                .accessibilityAddTraits(.isButton)
+                        }
+                    } header: {
+                        Text("Categories")
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                }
+
                 ForEach(feedsByCategory.keys.sorted(), id: \.self) { category in
                     Section {
                         ForEach(feedsByCategory[category] ?? []) { feed in
@@ -150,6 +183,20 @@ struct FeedListView: View {
         .sheet(item: $archiveFeed) { feed in
             NavigationStack { PodcastArchiveView(feed: feed) }
         }
+    }
+
+    /// Every category an article can be browsed under: feed categories
+    /// plus rule/delete moves and labels.
+    private func articleCategories() -> [String] {
+        var names = Set<String>()
+        for feed in feeds {
+            names.insert(feed.category)
+            for article in feed.articles {
+                if let moved = article.movedCategory { names.insert(moved) }
+                names.formUnion(article.labels)
+            }
+        }
+        return names.sorted()
     }
 
     /// iPad keeps the toolbar: hiding the sidebar's bar there would also

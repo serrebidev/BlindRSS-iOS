@@ -87,3 +87,39 @@ Distribution is GitHub Releases plus the serrebiALT AltStore source (https://git
 ## Verification
 
 Built and tested by GitHub Actions on macos-15 (unit tests on a simulator, a11y-check report attached to build artifacts, unsigned IPA). This workspace is WSL2 with no Xcode, so local verification is structural only. A VoiceOver pass on a real device is still recommended before announcing.
+
+## 0.1.12 parity pass (2026-10-25, against desktop v2.5.1)
+
+Ported: all keyless podcast/feed directories (fyyd, Podverse, Feedly,
+NewsBlur, Reddit, Lemmy, PieFed, Mastodon, Bluesky, Groups.io, Feedspot,
+Google News, Bing News) grouped by source in Discover; social URL to
+feed resolution (Mastodon, Bluesky, Reddit, Lemmy/Kbin, Groups.io,
+GitHub releases, YouTube channel/playlist/page); YouTube Takeout ZIP
+import (subscriptions, playlists, owner channel, watch history);
+YouTube transcripts in the reader via the keyless Innertube route;
+the full Filter Rules action set as an ordered pipeline (mark read,
+favorite, delete, skip notification, move, label, stop); Persistent
+Searches with sidebar browsing; browsable Categories with rename and
+delete; article retention with insert cutoff and favorite exemption;
+the three-way delete behaviour setting with optional confirmation;
+per-feed notification mute; feed description storage and display with
+Reset Title; reader presentation toggles (bullets, quotes, link
+targets, alt text) and search scope; last-view/last-feed restoration;
+Cmd+1..5 library shortcuts; built-in User Guide; Open Article by URL;
+Open Media URL; Site Cookies import (cookies.txt into the shared
+cookie storage).
+
+Still not ported, unchanged from the findings above: casting beyond
+AirPlay (Cast SDK plus the owner's Cast application id; DLNA/Sonos/
+Roku/Kodi belong to the separate Caster engine), yt-dlp resolvers and
+everything stream-resolved (including SponsorBlock and download-first
+playback), YouTube Account OAuth and Recommendations (the project's
+Google OAuth client is not in this repo), article translation (desktop
+is bring-your-own AI API key), forum-thread enumeration and the
+GitHub/Google Groups synthetic sources (native feeds cover the same
+publications), the Awesome RSS catalogue (dozens of bulk OPML fetches
+per search; the same publishers answer through NewsBlur/Feedly/
+Feedspot), keyed news APIs (NewsAPI/TheNewsAPI return nothing without
+a user key), interface translations (String Catalogs conversion), and
+desktop-OS surfaces (tray, soundcard selection, built-in updater;
+AltStore is the updater here).

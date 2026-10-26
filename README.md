@@ -2,7 +2,7 @@
 
 Native SwiftUI port of [BlindRSS](https://github.com/serrebidev/BlindRSS), the screen-reader-first desktop RSS and podcast client. Built for VoiceOver first, following [ios-swiftui-accessibility-techniques](https://github.com/cvs-health/ios-swiftui-accessibility-techniques) by CVS Health.
 
-Current release: 0.1.0. This is the first public iOS build. Expect rough edges; the desktop app remains the full-featured one.
+Current release: 0.1.12. The 0.1.12 release closes the feature gap with the desktop app (v2.5.x): everything portable to iOS is now here.
 
 ## Install with AltStore
 
@@ -25,9 +25,11 @@ You can also download the `.ipa` directly from [Releases](https://github.com/ser
 - Podcasting fully supported, matching the desktop player: enclosure streaming and downloads, Podcasting 2.0 chapters from feeds, resume playback, persistent auto-advancing play queue, lock-screen controls, background audio, volume, speed presets, sleep timer, auto-download, one combined Search Feeds and Podcasts (Apple Podcasts and gPodder by name, feed detection for pasted URLs), and Wayback archive recovery with batch download.
 - Feed refresh with VoiceOver announcements of new article counts.
 
-Also included: hosted providers (Miniflux, plus Inoreader, The Old Reader, and BazQux over the Google Reader API) in Settings, Online Account; Smart Folders; Filter Rules that mark read, favorite, or delete as articles arrive; a Deleted Articles view with restore; feed properties editing; full-text recovery; feed discovery from web page URLs; media downloads; a ten-band equalizer with the desktop presets and silence skipping for streamed and downloaded episodes; YouTube articles with an embedded player and description chapters; AirPlay; and notifications for new articles.
+Also included: hosted providers (Miniflux, plus Inoreader, The Old Reader, and BazQux over the Google Reader API) in Settings, Online Account; Smart Folders; Filter Rules with the desktop's full action set (mark read, favorite, delete, do not notify, move to a category, label, stop) applied as a pipeline as articles arrive; a Deleted Articles view with restore; feed properties editing with per-feed notification mute, the feed's published description, and Reset Title; full-text recovery; feed discovery from web page URLs; media downloads; a ten-band equalizer with the desktop presets and silence skipping for streamed and downloaded episodes; YouTube articles with an embedded player, description chapters, and a readable transcript; AirPlay; and notifications for new articles.
 
-Not ported: Chromecast and DLNA casting (needs Google's Cast SDK and a Cast application id), direct YouTube stream extraction (no yt-dlp on iOS; videos play in the embedded player), and translations (desktop gettext catalogs need converting to String Catalogs). See [AUDIT.md](AUDIT.md).
+New in 0.1.12 (desktop parity): discovery across every keyless desktop directory (fyyd, Podverse, Feedly, NewsBlur, Reddit, Lemmy, Mastodon, Bluesky, PieFed, Groups.io, Feedspot, Google News, Bing News) grouped by source; social page URLs resolve to feeds when subscribing (Mastodon, Bluesky, Reddit, Lemmy, Groups.io, GitHub, YouTube channels and playlists); YouTube Takeout ZIP import; Persistent Searches in the feed list; browsable Categories with rename and delete; article retention; delete behaviour (Deleted Articles, permanent, or move to a category) with an optional confirmation; reader presentation options (bullets, quote markers, link targets, image alt text) and a search-scope setting; last-view restoration at launch; a built-in User Guide; Open Article by URL and Open Media URL; and Site Cookies import.
+
+Not ported: Chromecast and DLNA casting (needs Google's Cast SDK and a Cast application id), direct YouTube stream extraction and stream-resolved features (no yt-dlp on iOS; videos play in the embedded player), and translations (desktop gettext catalogs need converting to String Catalogs). See [AUDIT.md](AUDIT.md).
 
 ## VoiceOver
 

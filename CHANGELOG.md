@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.12
+
+Desktop parity release: BlindRSS for iOS now matches the desktop app (v2.5.x) on everything portable to iOS.
+
+- Discovery searches every keyless desktop directory at once: Apple Podcasts and gPodder, plus fyyd, Podverse, Feedly, NewsBlur, Reddit, Lemmy, Mastodon, Bluesky, PieFed, Groups.io, Feedspot, and Google News and Bing News search feeds, grouped by directory.
+- Pasting a profile or community page into Add Feed subscribes to its feed: Mastodon and Bluesky profiles, subreddits and Reddit users, Lemmy and Kbin communities, Groups.io groups, GitHub repositories, and YouTube channels, playlists, and channel pages.
+- YouTube Takeout import in Settings, Subscriptions: subscriptions, playlists, and watched channels from a Google Takeout ZIP become subscriptions, like the desktop importer.
+- YouTube videos gain a Transcript section in the reader: captions as readable paragraphs, no account needed.
+- Filter Rules grew the desktop's full action set: mark read, favorite, delete, do not notify, move to a category, label, and stop processing further rules, combined per rule in order.
+- Persistent Searches: named searches saved in Settings appear in the feed list's new Searches section, and the app restores your last feed or view at launch like the desktop. Categories are browsable from the feed list and can be renamed or deleted in Settings.
+- Article retention: optionally remove articles older than 7, 30, 90, 180, or 365 days (favorites are never removed), and refreshes no longer bring back articles past the cutoff.
+- Delete behaviour is now a setting: move to Deleted Articles (as before), delete permanently, or move to a category; deleting asks first unless you turn the confirmation off.
+- Per-feed notifications: each feed's properties can mute its new-article notifications, and feeds show their published description there; Reset Title restores the feed's own title.
+- Reader presentation options (desktop Reading settings): bullet markers on lists, Quote markers on quotations, link targets read after link text, and image alt text, all off by default as on the desktop. Search can be limited to titles.
+- New Settings tools: a built-in User Guide, Open Article by URL, Open Media URL, and Site Cookies (import a browser's cookies.txt for sites that need a sign-in). Cmd+1 to Cmd+5 switch library views on a keyboard, and every feed now keeps its published description.
+
 ## 0.1.11
 
 - On iPhone, Add Feed and More now sit right at the top of the feed list, under the status bar. 0.1.10 left a blank band above them.

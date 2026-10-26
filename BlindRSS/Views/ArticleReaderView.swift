@@ -12,6 +12,8 @@ struct ArticleReaderView: View {
     @Environment(\.openURL) private var openURL
     @State private var fullText: [ReaderBlock]?
     @State private var isFetchingFullText = false
+    @State private var transcript: [String]?
+    @State private var isFetchingTranscript = false
     let article: Article
 
     private var youTubeID: String? { YouTubeService.videoID(from: article.url) }
@@ -124,6 +126,38 @@ struct ArticleReaderView: View {
                         .font(block.isHeading ? .headline : .body)
                         .accessibilityAddTraits(block.isHeading ? .isHeader : [])
                         .textSelection(.enabled)
+                }
+
+                if let youTubeID {
+                    // Desktop YouTube Transcript section: captions as
+                    // readable paragraphs under the article.
+                    Text("Transcript").font(.headline).accessibilityAddTraits(.isHeader)
+                    if let transcript {
+                        if transcript.isEmpty {
+                            Text("No transcript is available for this video.")
+                                .accessibilityLabel("No transcript is available for this video.")
+                        } else {
+                            ForEach(Array(transcript.enumerated()), id: \.offset) { _, paragraph in
+                                Text(paragraph)
+                                    .accessibilityLabel(paragraph)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                    } else {
+                        Button {
+                            Task {
+                                isFetchingTranscript = true
+                                transcript = await YouTubeService.transcriptParagraphs(videoID: youTubeID)
+                                isFetchingTranscript = false
+                                Announcer.announce(transcript?.isEmpty == false
+                                    ? "Transcript loaded." : "No transcript is available for this video.")
+                            }
+                        } label: {
+                            Label(isFetchingTranscript ? "Loading Transcript" : "Load Transcript", systemImage: "captions.bubble")
+                        }
+                        .disabled(isFetchingTranscript)
+                        .accessibilityHint("Fetches this video's captions and shows them as text.")
+                    }
                 }
 
                 if let url = URL(string: article.url) {

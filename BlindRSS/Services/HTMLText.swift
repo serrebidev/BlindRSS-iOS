@@ -8,6 +8,40 @@ import Foundation
 /// core.utils.html_to_text. VoiceOver reads the reader as text, so block
 /// elements become line breaks and markup never reaches the user.
 enum HTMLText {
+    // Reader presentation (desktop Settings: Reading; all off by
+    // default there, matching desktop render_presentation defaults).
+    static var presentationBullets: Bool { UserDefaults.standard.bool(forKey: "reader.bullets") }
+    static var presentationQuotes: Bool { UserDefaults.standard.bool(forKey: "reader.quotes") }
+    static var presentationLinks: Bool { UserDefaults.standard.bool(forKey: "reader.links") }
+    static var presentationAltText: Bool { UserDefaults.standard.bool(forKey: "reader.altText") }
+
+    /// Rewrites <a href>text</a> as "text (URL)" so links stay usable
+    /// once tags are stripped (desktop presentation links toggle).
+    static func rewritingLinkTargets(_ html: String) -> String {
+        let pattern = "<a[^>]*href=\"(https?://[^\"]+)\"[^>]*>(.*?)</a>"
+        guard let regex = try? NSRegularExpression(pattern: pattern,
+                                                   options: [.caseInsensitive, .dotMatchesLineSeparators]) else { return html }
+        var result = html
+        for match in regex.matches(in: html, range: NSRange(html.startIndex..., in: html)).reversed() {
+            guard let urlRange = Range(match.range(at: 1), in: html),
+                  let textRange = Range(match.range(at: 2), in: html),
+                  let whole = Range(match.range, in: result) else { continue }
+            let url = String(html[urlRange])
+            let inner = String(html[textRange])
+                .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let replacement = inner.isEmpty ? url : "\(inner) (\(url))"
+            result.replaceSubrange(whole, with: replacement)
+        }
+        return result
+    }
+
+    /// Rewrites <img alt="..."> as "[Image: ...]" (desktop alt-text toggle).
+    static func rewritingImageAltText(_ html: String) -> String {
+        html.replacingOccurrences(of: "<img[^>]*alt=\"([^\"]+)\"[^>]*>",
+                                  with: "[Image: $1]", options: [.regularExpression, .caseInsensitive])
+    }
+
     static func plainText(from html: String?) -> String {
         guard var text = html, !text.isEmpty else { return "" }
         // Drop script/style bodies entirely.
@@ -16,6 +50,19 @@ enum HTMLText {
                   let close = text.range(of: "</\(tag)>", options: .caseInsensitive, range: open.upperBound..<text.endIndex) {
                 text.removeSubrange(open.lowerBound..<close.upperBound)
             }
+        }
+        // Presentation rewrites run before tags are stripped.
+        if presentationAltText { text = rewritingImageAltText(text) }
+        if presentationLinks { text = rewritingLinkTargets(text) }
+        if presentationBullets {
+            text = text.replacingOccurrences(of: "<li( [^>]*)?>", with: "\n• ",
+                                             options: [.regularExpression, .caseInsensitive])
+        }
+        if presentationQuotes {
+            text = text.replacingOccurrences(of: "<blockquote( [^>]*)?>", with: "\nQuote: ",
+                                             options: [.regularExpression, .caseInsensitive])
+            text = text.replacingOccurrences(of: "</blockquote>", with: "\nEnd of quote.\n",
+                                             options: .caseInsensitive)
         }
         let blockBreaks = ["</p>", "<br>", "<br/>", "<br />", "</li>", "</h1>", "</h2>",
                            "</h3>", "</h4>", "</h5>", "</h6>", "</div>", "</tr>", "</blockquote>"]
@@ -359,7 +406,14 @@ private final class DOMNode {
             if isHeading {
                 blocks.append(ReaderBlock(isHeading: true, text: text.replacingOccurrences(of: "\n", with: " ")))
             } else {
-                blocks += text.split(separator: "\n").map { ReaderBlock(isHeading: false, text: String($0)) }
+                var lines = text.split(separator: "\n").map { ReaderBlock(isHeading: false, text: String($0)) }
+                if tag == "li", HTMLText.presentationBullets, !lines.isEmpty {
+                    lines[0] = ReaderBlock(isHeading: false, text: "• " + lines[0].text)
+                }
+                if tag == "blockquote", HTMLText.presentationQuotes, !lines.isEmpty {
+                    lines[0] = ReaderBlock(isHeading: false, text: "Quote: " + lines[0].text)
+                }
+                blocks += lines
             }
             return
         }

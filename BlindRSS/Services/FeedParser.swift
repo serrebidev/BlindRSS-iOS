@@ -33,6 +33,8 @@ struct ParsedFeed: Equatable, Sendable {
     var title: String
     var siteLink: String?
     var language: String?
+    /// The feed's own published description (channel description / Atom subtitle).
+    var feedDescription: String?
     var entries: [ParsedEntry]
 }
 
@@ -77,6 +79,7 @@ enum FeedParser {
             let title: String
             let home_page_url: String?
             let language: String?
+            let description: String?
             let items: [Item]
         }
         let decoded = try JSONDecoder().decode(JSONFeed.self, from: data)
@@ -95,7 +98,8 @@ enum FeedParser {
             )
         }
         return ParsedFeed(title: decoded.title, siteLink: decoded.home_page_url,
-                          language: decoded.language, entries: entries)
+                          language: decoded.language, feedDescription: decoded.description,
+                          entries: entries)
     }
 
     /// Parses "90", "1:30", or "1:02:30" chapter timestamps to seconds.
@@ -154,6 +158,7 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
     private var feedTitle = ""
     private var feedLink: String?
     private var feedLanguage: String?
+    private var feedDescription: String?
 
     private var inEntry = false
     private var entry = ParsedEntry(guid: "", title: "", link: "", contentHTML: "", author: "", dateRaw: "")
@@ -244,6 +249,7 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
             case "title": if feedTitle.isEmpty { feedTitle = value }
             case "link": if feedLink == nil, !value.isEmpty { feedLink = value }
             case "language": feedLanguage = value
+            case "description", "subtitle": if feedDescription == nil { feedDescription = value }
             default: break
             }
         }
@@ -254,6 +260,7 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
     func parserDidEndDocument(_ parser: XMLParser) {
         guard !feedTitle.isEmpty || !entries.isEmpty else { return }
         result = ParsedFeed(title: feedTitle.isEmpty ? (sourceURL.host ?? "Feed") : feedTitle,
-                            siteLink: feedLink, language: feedLanguage, entries: entries)
+                            siteLink: feedLink, language: feedLanguage,
+                            feedDescription: feedDescription, entries: entries)
     }
 }
