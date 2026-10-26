@@ -9,6 +9,13 @@ import SwiftUI
 @main
 struct BlindRSSApp: App {
     @State private var player = AudioPlayer()
+
+    init() {
+        // Google Cast discovery starts with the app (default media
+        // receiver; no owner application id — see CastService).
+        CastService.setup()
+        CastService.player = player
+    }
     @Environment(\.scenePhase) private var scenePhase
     /// Shared with background refresh, which runs without the window.
     private let container: ModelContainer = {

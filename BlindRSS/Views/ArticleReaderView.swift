@@ -14,16 +14,23 @@ struct ArticleReaderView: View {
     @State private var isFetchingFullText = false
     @State private var transcript: [String]?
     @State private var isFetchingTranscript = false
+    @State private var translatedBlocks: [ReaderBlock]?
+    @State private var showTranslation = false
+    @State private var isTranslating = false
+    @State private var threadLines: [String]?
+    @State private var isFetchingThread = false
+    @State private var isResolvingStream = false
     let article: Article
 
     private var youTubeID: String? { YouTubeService.videoID(from: article.url) }
+    private var lemmyPost: (base: String, id: String)? { ForumService.lemmyPost(from: article.url) }
 
     var body: some View {
         // Strip the HTML once per render. Body text and description
         // chapters each used to strip it, and chapters did so twice.
         let plainContent = HTMLText.plainText(from: article.content)
         let feedText = plainContent.isEmpty ? HTMLText.plainText(from: article.summary) : plainContent
-        let bodyBlocks = fullText ?? HTMLText.blocks(fromPlainText: feedText)
+        let bodyBlocks = (showTranslation ? translatedBlocks : nil) ?? fullText ?? HTMLText.blocks(fromPlainText: feedText)
         let descriptionChapters = YouTubeService.chapters(fromDescription: plainContent)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -94,6 +101,45 @@ struct ArticleReaderView: View {
                         }
                         .accessibilityHint("Downloads the media for offline listening.")
                     }
+                    Button {
+                        if showTranslation {
+                            showTranslation = false
+                            Announcer.announce("Showing the original article.")
+                        } else if translatedBlocks != nil {
+                            showTranslation = true
+                            Announcer.announce("Showing the translation.")
+                        } else {
+                            Task { await translateBody(blocks: bodyBlocks) }
+                        }
+                    } label: {
+                        Label(isTranslating ? "Translating" : (showTranslation ? "Show Original" : "Translate"),
+                              systemImage: "character.bubble")
+                    }
+                    .disabled(isTranslating)
+                    .accessibilityHint("Translates this article into your device language with a public translation service. No account or key is needed.")
+                }
+
+                if let youTubeID {
+                    // Native stream playback (research 0.1.13): the
+                    // resolved stream plays in the app's own player,
+                    // with resume, speed, and SponsorBlock skipping,
+                    // and can be downloaded for offline listening.
+                    HStack(spacing: 12) {
+                        Button {
+                            Task { await playStream(videoID: youTubeID) }
+                        } label: {
+                            Label(isResolvingStream ? "Resolving Stream" : "Play Stream", systemImage: "play.rectangle")
+                        }
+                        .disabled(isResolvingStream)
+                        .accessibilityHint("Plays this video's stream in the app player instead of the embedded web player.")
+                        Button {
+                            Task { await downloadStream(videoID: youTubeID) }
+                        } label: {
+                            Label("Download Stream", systemImage: "arrow.down.circle")
+                        }
+                        .disabled(isResolvingStream)
+                        .accessibilityHint("Downloads this video's stream for offline listening.")
+                    }
                 }
 
                 if !descriptionChapters.isEmpty, article.chapters.isEmpty {
@@ -160,6 +206,43 @@ struct ArticleReaderView: View {
                     }
                 }
 
+                if let lemmyPost {
+                    // Lemmy threads (research 0.1.13): the post's
+                    // comments from the instance's public API, indented
+                    // by depth like the desktop's thread view.
+                    Text("Thread").font(.headline).accessibilityAddTraits(.isHeader)
+                    if let threadLines {
+                        if threadLines.isEmpty {
+                            Text("No comments on this post yet.")
+                                .accessibilityLabel("No comments on this post yet.")
+                        } else {
+                            ForEach(Array(threadLines.enumerated()), id: \.offset) { _, line in
+                                Text(line)
+                                    .accessibilityLabel(line)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                    } else {
+                        Button {
+                            Task {
+                                isFetchingThread = true
+                                if let thread = await ForumService.thread(base: lemmyPost.base, postID: lemmyPost.id) {
+                                    threadLines = ForumService.lines(for: thread)
+                                    Announcer.announce("Thread loaded. \(thread.comments.count) comments.")
+                                } else {
+                                    threadLines = []
+                                    Announcer.announce("Could not load this thread.")
+                                }
+                                isFetchingThread = false
+                            }
+                        } label: {
+                            Label(isFetchingThread ? "Loading Thread" : "Load Thread", systemImage: "text.bubble")
+                        }
+                        .disabled(isFetchingThread)
+                        .accessibilityHint("Fetches this post's comments from its Lemmy instance.")
+                    }
+                }
+
                 if let url = URL(string: article.url) {
                     Link("Open original article", destination: url)
                         .accessibilityHint("Opens the full article in your browser.")
@@ -185,5 +268,61 @@ struct ArticleReaderView: View {
                 }
             }
         }
+    }
+
+    /// Translates the visible blocks into the device's preferred
+    /// language through the keyless public backends, keeping each
+    /// block's heading flag so the translated article navigates the
+    /// same way.
+    private func translateBody(blocks: [ReaderBlock]) async {
+        let target = Locale.current.language.languageCode?.identifier ?? "en"
+        isTranslating = true
+        var result: [ReaderBlock] = []
+        var failed = false
+        for block in blocks {
+            if let translated = await TranslateService.translate(block.text, to: target) {
+                result.append(ReaderBlock(isHeading: block.isHeading, text: translated))
+            } else {
+                failed = true
+                break
+            }
+        }
+        isTranslating = false
+        if failed {
+            Announcer.announce("Translation failed. The public translation services did not answer.")
+        } else {
+            translatedBlocks = result
+            showTranslation = true
+            Announcer.announce("Translation loaded.")
+        }
+    }
+
+    /// Resolves the video's stream and plays it in the app player on a
+    /// detached copy of the article, so resume state stays keyed to
+    /// the real article; SponsorBlock segments load alongside.
+    private func playStream(videoID: String) async {
+        isResolvingStream = true
+        guard let url = await YouTubeStreamResolver.playbackURL(videoID: videoID) else {
+            isResolvingStream = false
+            Announcer.announce("Could not resolve a playable stream for this video.")
+            return
+        }
+        let copy = Article(id: article.id, title: article.title, url: article.url,
+                           content: "", mediaURL: url.absoluteString)
+        player.play(article: copy)
+        isResolvingStream = false
+        if player.skipSponsorSegments {
+            player.sponsorSegments = await SponsorBlockService.segments(videoID: videoID)
+        }
+    }
+
+    private func downloadStream(videoID: String) async {
+        isResolvingStream = true
+        if let url = await YouTubeStreamResolver.playbackURL(videoID: videoID) {
+            try? await DownloadService.downloadStream(url: url, for: article)
+        } else {
+            Announcer.announce("Could not resolve a downloadable stream for this video.")
+        }
+        isResolvingStream = false
     }
 }

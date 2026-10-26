@@ -115,6 +115,7 @@ struct SettingsView: View {
     @AppStorage("deleteCategory") private var deleteCategory = ""
     @AppStorage("confirmDeleteArticles") private var confirmDeleteArticles = true
     @AppStorage("searchScope") private var searchScope = "titlesText"
+    @AppStorage("skipSponsorSegments") private var skipSponsorSegments = true
     @AppStorage("reader.bullets") private var readerBullets = false
     @AppStorage("reader.quotes") private var readerQuotes = false
     @AppStorage("reader.links") private var readerLinks = false
@@ -169,6 +170,8 @@ struct SettingsView: View {
                     }
                     .accessibilityElement(children: .contain)
                     .accessibilityLabel("Seek interval")
+                    Toggle("Skip sponsor segments", isOn: $skipSponsorSegments)
+                        .accessibilityHint("Skips SponsorBlock segments during YouTube stream playback.")
                 } header: {
                     Text("Player")
                         .accessibilityAddTraits(.isHeader)

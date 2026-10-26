@@ -84,6 +84,67 @@ enum YouTubeService {
         return paragraphs
     }
 
+    // MARK: Video Search (desktop Video Search)
+
+    struct VideoResult: Identifiable, Equatable, Sendable {
+        var videoID: String
+        var title: String
+        var channel: String
+        var durationText: String
+        var publishedText: String
+        var id: String { videoID }
+        var watchURL: String { "https://www.youtube.com/watch?v=\(videoID)" }
+    }
+
+    /// Parses an Innertube /youtubei/v1/search response into video
+    /// results (videoRenderer items; shelves and ads are skipped).
+    static func parseSearchResults(_ data: Data) -> [VideoResult] {
+        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return [] }
+        var renderers: [[String: Any]] = []
+        func collect(_ value: Any?) {
+            guard let dict = value as? [String: Any] else {
+                if let array = value as? [Any] { array.forEach(collect) }
+                return
+            }
+            if let renderer = dict["videoRenderer"] as? [String: Any] { renderers.append(renderer) }
+            for child in dict.values { collect(child) }
+        }
+        collect(root["contents"])
+        return renderers.compactMap { renderer in
+            guard let id = renderer["videoId"] as? String, !id.isEmpty else { return nil }
+            func runsText(_ key: String) -> String {
+                let container = renderer[key] as? [String: Any]
+                let runs = container?["runs"] as? [[String: Any]] ?? []
+                let joined = runs.compactMap { $0["text"] as? String }.joined()
+                if !joined.isEmpty { return joined }
+                return (container?["simpleText"] as? String) ?? ""
+            }
+            return VideoResult(videoID: id,
+                               title: runsText("title").isEmpty ? id : runsText("title"),
+                               channel: runsText("longBylineText"),
+                               durationText: runsText("lengthText"),
+                               publishedText: runsText("publishedTimeText"))
+        }
+    }
+
+    /// Keyless video search through the same public Innertube client
+    /// the transcript fetch uses (the desktop searches with yt-dlp;
+    /// Innertube's search endpoint is the iOS route, research 0.1.13).
+    static func searchVideos(term: String) async -> [VideoResult] {
+        var request = URLRequest(url: URL(string: "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8")!)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "query": term,
+            "context": ["client": ["clientName": "WEB", "clientVersion": "2.20251010.01.00", "hl": "en"]],
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return [] }
+        return parseSearchResults(data)
+    }
+
     static func videoID(from urlString: String) -> String? {
         guard let url = URL(string: urlString), let host = url.host else { return nil }
         if host.contains("youtu.be") { return url.lastPathComponent }

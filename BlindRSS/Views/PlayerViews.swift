@@ -183,6 +183,12 @@ struct MiniPlayerView: View {
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .accessibilityLabel("AirPlay and output devices")
 
+                    // Google Cast (research 0.1.13): Google's default
+                    // media receiver needs no owner application id.
+                    CastButtonView()
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .accessibilityLabel("Google Cast")
+
                     Menu {
                         Section("Sound") {
                             Button { showingEqualizer = true } label: { Label("Equalizer", systemImage: "slider.vertical.3") }

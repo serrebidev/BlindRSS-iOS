@@ -41,6 +41,15 @@ final class AudioPlayer {
     private let processor = AudioProcessor()
     /// True while the processor hears silence: playback runs fast through it.
     @ObservationIgnored private var inSilence = false
+    /// SponsorBlock segments for the current item (YouTube stream
+    /// playback), set by the reader when a stream starts. The periodic
+    /// observer skips playback past a segment it enters.
+    var sponsorSegments: [SponsorBlockService.Segment] = []
+    @ObservationIgnored private var lastSkippedSegmentEnd: TimeInterval = -1
+    /// Desktop SponsorBlock toggle; on by default there.
+    var skipSponsorSegments: Bool {
+        UserDefaults.standard.object(forKey: "skipSponsorSegments") as? Bool ?? true
+    }
     private(set) var queue: [Article] = []
     private(set) var currentArticle: Article?
 
@@ -84,6 +93,14 @@ final class AudioPlayer {
             Task { @MainActor in
                 guard let self else { return }
                 self.currentTime = time.seconds.isFinite ? time.seconds : 0
+                // SponsorBlock: entering a segment seeks past its end.
+                if self.isPlaying, self.skipSponsorSegments,
+                   let segment = SponsorBlockService.segment(at: self.currentTime, in: self.sponsorSegments),
+                   segment.end != self.lastSkippedSegmentEnd {
+                    self.lastSkippedSegmentEnd = segment.end
+                    self.seek(to: segment.end)
+                    Announcer.announce("Skipped \(segment.category) segment.")
+                }
                 // Desktop resume_save_interval_s is 15: persist progress.
                 if let article = self.currentArticle,
                    abs(self.currentTime - self.lastSavedPosition) >= 15 {
@@ -207,6 +224,10 @@ final class AudioPlayer {
     private func playURL(_ url: URL, article: Article, resumeAt: TimeInterval = 0) {
         currentArticle = article
         currentTitle = article.title
+        // Segments belong to one item; the reader sets the new item's
+        // after starting a YouTube stream.
+        sponsorSegments = []
+        lastSkippedSegmentEnd = -1
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
         inSilence = false

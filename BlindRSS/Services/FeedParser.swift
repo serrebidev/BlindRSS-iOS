@@ -47,6 +47,12 @@ enum FeedParserError: Error {
 /// (_parse_feed_document, _parse_json_feed, and the XML entry helpers).
 enum FeedParser {
     static func parse(data: Data, sourceURL: URL) throws -> ParsedFeed {
+        // Mixcloud subscriptions are the service's documented public API
+        // (api.mixcloud.com/<user>/cloudcasts/), converted by
+        // SocialResolver; its JSON is neither JSON Feed nor XML.
+        if sourceURL.host == "api.mixcloud.com", let feed = try? parseMixcloud(data: data, sourceURL: sourceURL) {
+            return feed
+        }
         if let feed = try? parseJSONFeed(data: data) { return feed }
         let delegate = FeedXMLDelegate(sourceURL: sourceURL)
         let parser = XMLParser(data: data)
@@ -100,6 +106,45 @@ enum FeedParser {
         return ParsedFeed(title: decoded.title, siteLink: decoded.home_page_url,
                           language: decoded.language, feedDescription: decoded.description,
                           entries: entries)
+    }
+
+    // MARK: Mixcloud API (https://www.mixcloud.com/developers/)
+
+    /// A user's cloudcast list as a feed: each upload becomes an entry
+    /// linking to its Mixcloud page. Mixcloud exposes no direct stream
+    /// URLs through its public API, so entries carry no playable media
+    /// (see AUDIT.md, research round 0.1.13).
+    private static func parseMixcloud(data: Data, sourceURL: URL) throws -> ParsedFeed {
+        struct Response: Decodable {
+            struct Cloudcast: Decodable {
+                struct User: Decodable { let username: String?; let name: String? }
+                let key: String
+                let name: String
+                let url: String
+                let created_time: String?
+                let user: User?
+            }
+            let data: [Cloudcast]
+        }
+        let decoded = try JSONDecoder().decode(Response.self, from: data)
+        let username = sourceURL.pathComponents.dropFirst().first ?? "Mixcloud"
+        let owner = decoded.data.first?.user?.name ?? username
+        let entries = decoded.data.map { cast in
+            ParsedEntry(
+                guid: cast.key,
+                title: cast.name,
+                link: cast.url,
+                contentHTML: "",
+                summaryHTML: nil,
+                author: cast.user?.name ?? "",
+                dateRaw: cast.created_time ?? "",
+                date: cast.created_time.flatMap { ISO8601DateFormatter().date(from: $0) },
+                mediaURL: nil,
+                mediaType: nil
+            )
+        }
+        return ParsedFeed(title: "\(owner) on Mixcloud", siteLink: "https://www.mixcloud.com/\(username)/",
+                          language: nil, feedDescription: nil, entries: entries)
     }
 
     /// Parses "90", "1:30", or "1:02:30" chapter timestamps to seconds.

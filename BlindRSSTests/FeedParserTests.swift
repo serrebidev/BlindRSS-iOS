@@ -542,3 +542,165 @@ final class ParityFeatureTests: XCTestCase {
         return out
     }
 }
+
+// MARK: - Research round 0.1.13
+
+final class ResearchRoundTests: XCTestCase {
+    // SponsorBlock
+
+    func testSponsorBlockParsesSegments() {
+        let json = """
+        [{"segment":[10.5,25.0],"category":"sponsor","UUID":"a","videoDuration":600},
+         {"segment":[0,4.25],"category":"intro","UUID":"b","videoDuration":600},
+         {"segment":[9,9],"category":"broken","UUID":"c","videoDuration":600}]
+        """
+        let segments = SponsorBlockService.parseSegments(Data(json.utf8))
+        XCTAssertEqual(segments.count, 2)
+        XCTAssertEqual(segments[0].category, "intro")
+        XCTAssertEqual(segments[1].start, 10.5)
+        XCTAssertEqual(SponsorBlockService.segment(at: 12, in: segments)?.category, "sponsor")
+        XCTAssertNil(SponsorBlockService.segment(at: 24.9, in: segments))
+        XCTAssertNil(SponsorBlockService.segment(at: 30, in: segments))
+    }
+
+    func testSponsorBlockNotFoundParsesEmpty() {
+        XCTAssertTrue(SponsorBlockService.parseSegments(Data("Not Found".utf8)).isEmpty)
+    }
+
+    // Translation
+
+    func testTranslateParsesLingvaAndLibreTranslate() {
+        XCTAssertEqual(TranslateService.parseLingva(Data(#"{"translation":"Hola mundo","info":{"detectedSource":"en"}}"#.utf8)), "Hola mundo")
+        XCTAssertEqual(TranslateService.parseLibreTranslate(Data(#"{"translatedText":"Bonjour"}"#.utf8)), "Bonjour")
+        XCTAssertNil(TranslateService.parseLingva(Data(#"{"error":"nope"}"#.utf8)))
+        XCTAssertNil(TranslateService.parseLibreTranslate(Data(#"{"error":"nope"}"#.utf8)))
+    }
+
+    func testTranslateChunksSplitLongText() {
+        let paragraph = String(repeating: "Sentence one is here. ", count: 40)
+        let text = (0..<5).map { _ in paragraph }.joined(separator: "\n")
+        let chunks = TranslateService.chunks(of: text, maxLength: 300)
+        XCTAssertGreaterThan(chunks.count, 3)
+        XCTAssertTrue(chunks.allSatisfy { $0.count <= 300 })
+        XCTAssertEqual(TranslateService.chunks(of: "short"), ["short"])
+        XCTAssertEqual(TranslateService.chunks(of: "  "), [])
+    }
+
+    // Lemmy threads
+
+    func testLemmyPostURLDetection() {
+        let post = ForumService.lemmyPost(from: "https://lemmy.world/post/12345")
+        XCTAssertEqual(post?.base, "https://lemmy.world")
+        XCTAssertEqual(post?.id, "12345")
+        XCTAssertNil(ForumService.lemmyPost(from: "https://lemmy.world/c/technology"))
+        XCTAssertNil(ForumService.lemmyPost(from: "https://example.com/post/abc"))
+    }
+
+    func testLemmyParsesPostAndComments() {
+        let postJSON = """
+        {"post_view":{"post":{"id":7,"name":"A post","body":"Post body text",
+        "url":"https://example.com/story"},"creator":{"name":"op"},"community":{"name":"tech"}}}
+        """
+        let parsed = ForumService.parsePost(Data(postJSON.utf8))
+        XCTAssertEqual(parsed?.title, "A post")
+        XCTAssertEqual(parsed?.body, "Post body text")
+
+        let commentsJSON = """
+        {"comments":[
+          {"comment":{"id":1,"content":"Top level","path":"0.1"},"creator":{"name":"amy"}},
+          {"comment":{"id":2,"content":"A reply","path":"0.1.2"},"creator":{"name":"bob"}},
+          {"comment":{"id":3,"content":"Deep reply","path":"0.1.2.3"},"creator":{"name":"cy"}},
+          {"comment":{"id":4,"content":"gone","path":"0.4","deleted":true},"creator":{"name":"dan"}}
+        ]}
+        """
+        let comments = ForumService.parseComments(Data(commentsJSON.utf8))
+        XCTAssertEqual(comments.count, 4)
+        XCTAssertEqual(comments.map(\.depth), [0, 1, 2, 0])
+        XCTAssertEqual(comments[3].text, "[deleted]")
+        let thread = ForumService.Thread(title: "A post", body: "Post body text", comments: comments)
+        let lines = ForumService.lines(for: thread)
+        XCTAssertEqual(lines[0], "Post body text")
+        XCTAssertEqual(lines[1], "Comment, amy: Top level")
+        XCTAssertTrue(lines[2].contains("Reply, level 1, bob: A reply"))
+    }
+
+    // Awesome RSS catalogue
+
+    func testAwesomeRSSMapsOPMLToResults() {
+        let opml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <opml version="1.0"><body>
+        <outline text="News" title="News">
+          <outline type="rss" text="CBC Top Stories" title="CBC Top Stories" xmlUrl="https://example.com/cbc.xml"/>
+        </outline>
+        <outline type="rss" text="Solo Feed" title="Solo Feed" xmlUrl="https://example.com/solo.xml"/>
+        </body></opml>
+        """
+        let entry = AwesomeRSSService.Entry(name: "Canada", path: "countries/with_category/Canada.opml", group: "Countries")
+        let results = AwesomeRSSService.results(fromOPML: Data(opml.utf8), entry: entry)
+        XCTAssertEqual(results.count, 2)
+        XCTAssertEqual(results[0].title, "CBC Top Stories")
+        XCTAssertEqual(results[0].website, "News")
+        XCTAssertNil(results[1].website)
+        XCTAssertEqual(results[0].source, "Awesome RSS: Canada")
+        XCTAssertEqual(AwesomeRSSService.catalogue.count,
+                       AwesomeRSSService.countries.count + AwesomeRSSService.topics.count)
+        XCTAssertEqual(AwesomeRSSService.fileURL(for: entry)?.absoluteString.contains("Canada.opml"), true)
+    }
+
+    // YouTube video search (Innertube)
+
+    func testYouTubeSearchParsesVideoRenderers() {
+        let json = """
+        {"contents":{"twoColumnSearchResultsRenderer":{"primaryContents":
+        {"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[
+          {"videoRenderer":{"videoId":"abc123XYZ_-","title":{"runs":[{"text":"A Video"}]},
+            "longBylineText":{"runs":[{"text":"A Channel"}]},
+            "lengthText":{"simpleText":"12:34"},"publishedTimeText":{"simpleText":"3 days ago"}}},
+          {"shelfRenderer":{"title":{"runs":[{"text":"Shelf"}]}}}
+        ]}}]}}}}}
+        """
+        let results = YouTubeService.parseSearchResults(Data(json.utf8))
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].videoID, "abc123XYZ_-")
+        XCTAssertEqual(results[0].title, "A Video")
+        XCTAssertEqual(results[0].channel, "A Channel")
+        XCTAssertEqual(results[0].durationText, "12:34")
+        XCTAssertEqual(results[0].watchURL, "https://www.youtube.com/watch?v=abc123XYZ_-")
+    }
+
+    // SoundCloud and Mixcloud subscription conversion
+
+    func testSoundCloudProfileScrapesUserRSS() {
+        XCTAssertTrue(SocialResolver.isSoundCloudProfile("https://soundcloud.com/someartist"))
+        XCTAssertFalse(SocialResolver.isSoundCloudProfile("https://soundcloud.com/someartist/a-track"))
+        let html = #"<html><meta content="soundcloud://sounds:1"><link href="https://soundcloud.com/x">urn soundcloud:users:9876543 end</html>"#
+        XCTAssertEqual(SocialResolver.soundCloudFeedURL(fromProfileHTML: html),
+                       "https://feeds.soundcloud.com/users/soundcloud:users:9876543/sounds.rss")
+        XCTAssertNil(SocialResolver.soundCloudFeedURL(fromProfileHTML: "<html>no id</html>"))
+    }
+
+    func testMixcloudProfileConvertsToAPIList() {
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://www.mixcloud.com/someuser/"),
+                       "https://api.mixcloud.com/someuser/cloudcasts/?limit=100")
+    }
+
+    func testMixcloudAPIParsesAsFeed() throws {
+        let json = """
+        {"data":[
+          {"key":"/someuser/mix-one/","name":"Mix One","url":"https://www.mixcloud.com/someuser/mix-one/",
+           "created_time":"2026-10-01T10:00:00Z","user":{"username":"someuser","name":"Some User"}},
+          {"key":"/someuser/mix-two/","name":"Mix Two","url":"https://www.mixcloud.com/someuser/mix-two/",
+           "created_time":"2026-10-20T10:00:00Z","user":{"username":"someuser","name":"Some User"}}
+        ]}
+        """
+        let feed = try FeedParser.parse(data: Data(json.utf8),
+                                        sourceURL: URL(string: "https://api.mixcloud.com/someuser/cloudcasts/?limit=100")!)
+        XCTAssertEqual(feed.title, "Some User on Mixcloud")
+        XCTAssertEqual(feed.entries.count, 2)
+        XCTAssertEqual(feed.entries[0].guid, "/someuser/mix-one/")
+        XCTAssertEqual(feed.entries[0].link, "https://www.mixcloud.com/someuser/mix-one/")
+        XCTAssertNotNil(feed.entries[0].date)
+        XCTAssertNil(feed.entries[0].mediaURL)
+    }
+}

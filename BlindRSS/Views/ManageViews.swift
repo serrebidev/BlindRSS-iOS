@@ -209,11 +209,34 @@ struct DiscoverView: View {
     @State private var query = ""
     @State private var podcasts: [PodcastService.SearchResult] = []
     @State private var feeds: [PodcastService.FeedResult] = []
+    @State private var videos: [YouTubeService.VideoResult] = []
     @State private var isSearching = false
     @State private var hasSearched = false
 
     var body: some View {
         List {
+            Section {
+                NavigationLink { AwesomeRSSView() } label: {
+                    Label("Browse Awesome RSS Catalogue", systemImage: "books.vertical")
+                }
+                .accessibilityHint("Opens curated feed lists by country and topic.")
+            }
+            if !videos.isEmpty {
+                Section {
+                    ForEach(videos) { video in
+                        NavigationLink { VideoResultView(video: video) } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(video.title)
+                                Text([video.channel, video.durationText].filter { !$0.isEmpty }.joined(separator: ", "))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .accessibilityLabel(video.title)
+                        .accessibilityValue([video.channel, video.durationText].filter { !$0.isEmpty }.joined(separator: ", "))
+                        .accessibilityHint("Opens this video with its player and transcript.")
+                    }
+                } header: { Text("Videos").accessibilityAddTraits(.isHeader) }
+            }
             if !podcasts.isEmpty {
                 Section {
                     ForEach(podcasts) { result in
@@ -232,7 +255,7 @@ struct DiscoverView: View {
                     }
                 } header: { Text(group.source).accessibilityAddTraits(.isHeader) }
             }
-            if hasSearched, podcasts.isEmpty, feeds.isEmpty, !isSearching {
+            if hasSearched, podcasts.isEmpty, feeds.isEmpty, videos.isEmpty, !isSearching {
                 Text("No feeds or podcasts found.")
                     .accessibilityLabel("No feeds or podcasts found.")
             }
@@ -278,6 +301,7 @@ struct DiscoverView: View {
         hasSearched = true
         podcasts = []
         feeds = []
+        videos = []
         if PodcastService.looksLikeURL(trimmed), let page = URL(string: trimmed.hasPrefix("http") ? trimmed : "https://\(trimmed)") {
             // URL: page discovery plus feedsearch.dev, and try it AS a feed.
             async let discovered = FullTextService.discoverFeeds(pageURL: page)
@@ -293,19 +317,21 @@ struct DiscoverView: View {
             feeds = found
         } else {
             // Name: Apple Podcasts, gPodder, and the desktop's keyless
-            // directories together.
+            // directories together, plus YouTube video search.
             async let podcastResults = PodcastService.searchPodcasts(term: trimmed)
             async let feedResults = PodcastService.searchFeeds(term: trimmed)
             async let directoryResults = DirectorySearch.searchAll(term: trimmed)
+            async let videoResults = YouTubeService.searchVideos(term: trimmed)
             podcasts = (try? await podcastResults) ?? []
             var combined = await feedResults
             for result in await directoryResults where !combined.contains(where: { $0.url == result.url }) {
                 combined.append(result)
             }
             feeds = combined
+            videos = await videoResults
         }
         isSearching = false
-        Announcer.announce("\(podcasts.count + feeds.count) results found.")
+        Announcer.announce("\(podcasts.count + feeds.count + videos.count) results found.")
     }
 }
 

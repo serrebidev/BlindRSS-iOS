@@ -36,6 +36,22 @@ enum DownloadService {
         Announcer.announce("Downloaded \(article.title).")
     }
 
+    /// Downloads a resolved stream URL (a YouTubeKit-resolved YouTube
+    /// stream) against an existing article, so the download attaches
+    /// to the article the user is reading.
+    static func downloadStream(url: URL, for article: Article) async throws {
+        let (temp, _) = try await URLSession.shared.download(from: url)
+        let ext = url.pathExtension.isEmpty ? "m4a" : url.pathExtension
+        let safeID = article.id.replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+        let name = "\(safeID).\(ext)"
+        let dest = downloadsDirectory.appendingPathComponent(name)
+        try? FileManager.default.removeItem(at: dest)
+        try FileManager.default.moveItem(at: temp, to: dest)
+        article.localFileName = name
+        Announcer.announce("Downloaded \(article.title).")
+    }
+
     static func removeDownload(article: Article) {
         if let name = article.localFileName {
             try? FileManager.default.removeItem(at: downloadsDirectory.appendingPathComponent(name))

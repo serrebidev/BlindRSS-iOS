@@ -42,6 +42,9 @@ final class LibraryStore {
         } else if SocialResolver.isYouTubeChannelPage(target),
                   let feedURL = await SocialResolver.youTubeChannelFeedURL(pageURL: target) {
             target = feedURL
+        } else if SocialResolver.isSoundCloudProfile(target),
+                  let feedURL = await SocialResolver.soundCloudFeedURL(pageURL: target) {
+            target = feedURL
         }
         guard let url = URL(string: target),
               url.scheme == "http" || url.scheme == "https" else {
