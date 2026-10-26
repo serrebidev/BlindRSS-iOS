@@ -439,15 +439,18 @@ struct ProviderSettingsView: View {
 }
 
 /// Feed properties (desktop Feed Properties): rename, recategorize,
-/// per-feed notifications, the feed's own description, and reset title.
-/// The description and notifications are stored on the feed; the rest
-/// were already here.
+/// per-feed notifications and refresh, the feed's own description, and
+/// reset title. Per-feed Refresh lives here, one deliberate step in from
+/// Home. The description and notifications are stored on the feed; the
+/// rest were already here.
 struct FeedEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Bindable var feed: Feed
+    @State private var store = LibraryStore()
     @State private var title: String = ""
     @State private var category: String = ""
+    @State private var isRefreshing = false
 
     var body: some View {
         NavigationStack {
@@ -474,6 +477,20 @@ struct FeedEditView: View {
                         .accessibilityLabel("Notifications for This Feed")
                         .accessibilityHint("When off, new articles from this feed never raise a notification.")
                 }
+                Section {
+                    Button {
+                        Task {
+                            isRefreshing = true
+                            await store.refresh(feed: feed, in: context)
+                            isRefreshing = false
+                        }
+                    } label: {
+                        Label(isRefreshing ? "Refreshing Feed" : "Refresh Feed", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(isRefreshing)
+                    .accessibilityLabel(isRefreshing ? "Refreshing \(feed.title)" : "Refresh \(feed.title)")
+                    .accessibilityHint("Fetches new articles from this feed.")
+                } header: { Text("Feed Actions").accessibilityAddTraits(.isHeader) }
                 if let description = feed.feedDescription, !description.isEmpty {
                     Section {
                         Text(description)

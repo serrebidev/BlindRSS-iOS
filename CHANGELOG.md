@@ -13,6 +13,7 @@ Desktop parity release: BlindRSS for iOS now matches the desktop app (v2.5.x) on
 - Article retention: optionally remove articles older than 7, 30, 90, 180, or 365 days (favorites are never removed), and refreshes no longer bring back articles past the cutoff.
 - Delete behaviour is now a setting: move to Deleted Articles (as before), delete permanently, or move to a category; deleting asks first unless you turn the confirmation off.
 - Per-feed notifications: each feed's properties can mute its new-article notifications, and feeds show their published description there; Reset Title restores the feed's own title.
+- Home is cleaner: feed rows no longer expose a per-feed Refresh action or an accidental full-swipe Refresh. Refresh one feed deliberately from its Feed Properties; the global Refresh All remains in the More menu on iPhone and the toolbar on iPad.
 - Reader presentation options (desktop Reading settings): bullet markers on lists, Quote markers on quotations, link targets read after link text, and image alt text, all off by default as on the desktop. Search can be limited to titles.
 - New Settings tools: a built-in User Guide, Open Article by URL, Open Media URL, and Site Cookies (import a browser's cookies.txt for sites that need a sign-in). Cmd+1 to Cmd+5 switch library views on a keyboard, and every feed now keeps its published description.
 

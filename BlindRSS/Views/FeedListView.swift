@@ -270,16 +270,11 @@ struct FeedListView: View {
                 markAllRead(feed)
             } label: { Label("Mark All Read", systemImage: "envelope.open") }
         }
-        .touchSwipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button {
-                Task { await store.refresh(feed: feed, in: context) }
-            } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                .tint(.blue)
-        }
-        // VoiceOver custom actions: the identical set, with icons for the
-        // Switch Control and Voice Control actions menus.
+        // VoiceOver custom actions, with icons for the Switch Control
+        // and Voice Control actions menus. Per-feed Refresh deliberately
+        // lives in Feed Properties, not on Home: it was both a Home row
+        // action and an accidental full-swipe target.
         .accessibilityAction { selection = .feed(feed) } label: { Label("Open", systemImage: "doc.text") }
-        .accessibilityAction { Task { await store.refresh(feed: feed, in: context) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
         .accessibilityAction { markAllRead(feed) } label: { Label("Mark All Read", systemImage: "envelope.open") }
         .accessibilityAction { editingFeed = feed } label: { Label("Edit Feed", systemImage: "pencil") }
         .accessibilityAction { archiveFeed = feed } label: { Label("Podcast Archive", systemImage: "archivebox") }

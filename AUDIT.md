@@ -123,3 +123,9 @@ Feedspot), keyed news APIs (NewsAPI/TheNewsAPI return nothing without
 a user key), interface translations (String Catalogs conversion), and
 desktop-OS surfaces (tray, soundcard selection, built-in updater;
 AltStore is the updater here).
+
+Home cleanup (Brandon, 2026-10-26): per-feed Refresh was removed from
+Home feed rows as both a VoiceOver custom action and a leading
+full-swipe action. It now lives in Feed Properties as Refresh Feed.
+The one global Refresh All remains reachable from More on iPhone and
+the sidebar toolbar on iPad; pull-to-refresh also remains available.
