@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.14
+
+YouTube account sign-in, from a source audit of SmartTube (recorded in AUDIT.md): SmartTube signs in with the OAuth device-code flow of YouTube's own TV app — no Google Cloud project, no personal API credential — so BlindRSS now does the same, implemented fresh in Swift.
+
+- Sign In to YouTube lives in Settings, YouTube Account. The app shows a short code; you enter it on YouTube's activation page (the app links to it) and sign in there — your password is never typed into BlindRSS. The app polls until YouTube confirms, then keeps only a refresh token, stored in the Keychain. Sign Out removes it.
+- Two new sources appear in Search Feeds and Podcasts while signed in: YouTube Subscriptions (the latest videos from your subscriptions) and YouTube Recommendations (your account's home feed). Videos open with the player, stream playback, SponsorBlock skipping, and transcripts, exactly like Video Search results.
+- How it works, briefly: the sign-in uses the TV client identity YouTube ships in its own TV web app. Like SmartTube, the app reads the current TV client values from that web app at sign-in time rather than hardcoding a personal credential, so nothing belongs to any individual account and no setup is needed.
+
+
 ## 0.1.13
 
 Research round: the 0.1.12 "not ported" list was re-examined item by item (web and code-host research recorded in AUDIT.md), and everything the research unlocked is now ported.

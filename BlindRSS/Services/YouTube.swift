@@ -96,8 +96,11 @@ enum YouTubeService {
         var watchURL: String { "https://www.youtube.com/watch?v=\(videoID)" }
     }
 
-    /// Parses an Innertube /youtubei/v1/search response into video
-    /// results (videoRenderer items; shelves and ads are skipped).
+    /// Parses an Innertube search or browse response into video
+    /// results. Search answers with videoRenderer items; account
+    /// browse feeds (Subscriptions, Home) answer with TV grid items
+    /// (gridVideoRenderer) and rich items wrapping a videoRenderer.
+    /// Shelves and ads carry neither and are skipped.
     static func parseSearchResults(_ data: Data) -> [VideoResult] {
         guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return [] }
         var renderers: [[String: Any]] = []
@@ -107,11 +110,14 @@ enum YouTubeService {
                 return
             }
             if let renderer = dict["videoRenderer"] as? [String: Any] { renderers.append(renderer) }
+            if let grid = dict["gridVideoRenderer"] as? [String: Any] { renderers.append(grid) }
             for child in dict.values { collect(child) }
         }
         collect(root["contents"])
+        collect(root["onResponseReceivedActions"])
+        var seen = Set<String>()
         return renderers.compactMap { renderer in
-            guard let id = renderer["videoId"] as? String, !id.isEmpty else { return nil }
+            guard let id = renderer["videoId"] as? String, !id.isEmpty, seen.insert(id).inserted else { return nil }
             func runsText(_ key: String) -> String {
                 let container = renderer[key] as? [String: Any]
                 let runs = container?["runs"] as? [[String: Any]] ?? []
@@ -119,10 +125,22 @@ enum YouTubeService {
                 if !joined.isEmpty { return joined }
                 return (container?["simpleText"] as? String) ?? ""
             }
+            // Grid items carry the duration in a thumbnail overlay
+            // instead of a lengthText field.
+            var duration = runsText("lengthText")
+            if duration.isEmpty,
+               let overlays = renderer["thumbnailOverlays"] as? [[String: Any]] {
+                for overlay in overlays {
+                    if let status = overlay["thumbnailOverlayTimeStatusRenderer"] as? [String: Any],
+                       let text = status["text"] as? [String: Any],
+                       let simple = text["simpleText"] as? String { duration = simple; break }
+                }
+            }
+            let channel = runsText("longBylineText").isEmpty ? runsText("shortBylineText") : runsText("longBylineText")
             return VideoResult(videoID: id,
                                title: runsText("title").isEmpty ? id : runsText("title"),
-                               channel: runsText("longBylineText"),
-                               durationText: runsText("lengthText"),
+                               channel: channel,
+                               durationText: duration,
                                publishedText: runsText("publishedTimeText"))
         }
     }

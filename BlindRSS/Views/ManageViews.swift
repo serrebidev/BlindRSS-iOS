@@ -210,6 +210,7 @@ struct DiscoverView: View {
     @State private var podcasts: [PodcastService.SearchResult] = []
     @State private var feeds: [PodcastService.FeedResult] = []
     @State private var videos: [YouTubeService.VideoResult] = []
+    @State private var youtubeAccount = YouTubeAccount.shared
     @State private var isSearching = false
     @State private var hasSearched = false
 
@@ -220,6 +221,18 @@ struct DiscoverView: View {
                     Label("Browse Awesome RSS Catalogue", systemImage: "books.vertical")
                 }
                 .accessibilityHint("Opens curated feed lists by country and topic.")
+            }
+            if youtubeAccount.isSignedIn {
+                Section {
+                    NavigationLink { YouTubeFeedView(kind: .subscriptions) } label: {
+                        Label("YouTube Subscriptions", systemImage: "play.square.stack")
+                    }
+                    .accessibilityHint("Latest videos from your YouTube subscriptions.")
+                    NavigationLink { YouTubeFeedView(kind: .recommendations) } label: {
+                        Label("YouTube Recommendations", systemImage: "sparkles.rectangle.stack")
+                    }
+                    .accessibilityHint("Videos YouTube recommends for your account.")
+                } header: { Text("YouTube Account").accessibilityAddTraits(.isHeader) }
             }
             if !videos.isEmpty {
                 Section {
