@@ -40,12 +40,14 @@ struct ArticleEntity: AppEntity {
     }
 
     @MainActor init(_ article: Article) {
+        // Plain stored properties first: the @Property setters need
+        // every stored property initialized.
         id = article.id
+        snippet = String(HTMLText.plainText(from: String((article.summary ?? article.content).prefix(1500))).prefix(400))
         title = article.title
         feedTitle = article.feed?.title ?? ""
         date = article.date
         link = article.url
-        snippet = String(HTMLText.plainText(from: String((article.summary ?? article.content).prefix(1500))).prefix(400))
     }
 }
 
