@@ -11,5 +11,11 @@
 		<string>audio</string>
 		<string>fetch</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>BlindRSS uses the local network to find Chromecast and Google TV devices for Google Cast playback.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_googlecast._tcp</string>
+	</array>
 </dict>
 </plist>

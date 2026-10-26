@@ -129,3 +129,272 @@ Home feed rows as both a VoiceOver custom action and a leading
 full-swipe action. It now lives in Feed Properties as Refresh Feed.
 The one global Refresh All remains reachable from More on iPhone and
 the sidebar toolbar on iPad; pull-to-refresh also remains available.
+
+## 0.1.13 research round (2026-10-26): the "not ported" list, re-examined
+
+Brandon's methodology, applied per problem area: web search with the
+results opened and read, plus GitHub, Codeberg, and GitLab searches,
+each sorted by most recent (10 results) and by most stars (10 results).
+Findings are recorded per area below with repo names, stars, last-push
+dates, and a one-line verdict each. "Ported" means a maintained-enough
+library or a documented public API/endpoint integrated in the app's
+existing patterns, with unit tests in the repo style. Anything still
+blocked cites the evidence here, not an assertion.
+
+### A. yt-dlp-equivalent extraction (YouTube, Rumble, Odysee, SponsorBlock, SoundCloud, Mixcloud)
+
+Web, read: SwiftyYTDL (a SwiftUI wrapper that embeds yt-dlp through
+PythonKit and the Python Apple Support prebuilt libraries; a stub
+project, no maintenance signal); tfourj/palladium (an iOS media
+downloader app based on yt-dlp, app not library); yt-dlp-apple-webkit-
+jsi (a Python yt-dlp plugin that solves YouTube challenges through
+Apple WebKit — still requires an embedded Python runtime); a-Shell and
+iSH (terminal apps that run yt-dlp on iOS — not embeddable in another
+app); 0xced/XCDYouTubeKit (Objective-C extractor, JavaScriptCore
+signature unscrambling, unmaintained era); the Innertube explainer
+(the keyless /youtubei/v1 player, search, next, and browse endpoints —
+the app already uses the player endpoint for transcripts); DeepWiki
+architecture pages for alexeichhorn/YouTubeKit (local extraction:
+watch page fetch, player JS download, concurrent Innertube clients,
+local cipher decryption, Stream objects; optional remote youtube-dl
+WebSocket fallback).
+
+GitHub, "youtube extractor swift", recent: alexeichhorn/YouTubeKit
+(420 stars, pushed 2026-10-25 — the extractor, actively maintained);
+nssevy/YTTranscript (0, 2026-10-09, transcript tool, not extraction);
+teenagelove/swift-yt-downloader (0, 2026-07-10, Telegram bot);
+dcas796/YouTubeKit (5, 2024-03-31, stale namesake);
+AlwardL24/SwiftYoutubeExtractor (2, 2023-12-11, tiny subset);
+yassram/YoutubeVideoExtractor (10, 2018-12-02, dead).
+GitHub, same query, stars: YouTubeKit 420 first; everything else is
+10 stars or fewer and 2018–2024 vintage.
+GitHub, "innertube swift youtube", recent and stars: b5i/YouTubeKit
+(134 stars, pushed 2026-08-18 — a different library: internal-API
+data access, no stream extraction); arraypress/swift-youtube-metadata
+(3, 2026-10-25, metadata via Innertube); atpugvaraa/YouTubeSDK (2,
+2026-10-14, Innertube SDK); gek0z/YouMenuTube (0, 2026-10-04, uses
+YouTubeKit for playback).
+GitHub, "ytdlp ios python": no results in either sort. Codeberg and
+GitLab: no results for any A query, either sort.
+
+Verdict, YouTube: PORTED. alexeichhorn/YouTubeKit (MIT, 420 stars, 34
+releases, latest 0.4.10, pushed the day before this round) does
+yt-dlp's local extraction in pure Swift. Integrated as an SPM
+dependency; YouTube articles gain Play Stream (AVPlayer, with resume,
+speed, and SponsorBlock skipping) and Download Stream, and Discover's
+Video Search runs on the keyless Innertube search endpoint the app
+already used for transcripts. The embedded web player stays as the
+visual option. Rumble and Odysee: still blocked — no Swift extractor
+exists on any host, and the only iOS yt-dlp route is embedding a
+Python runtime behind a stub wrapper (SwiftyYTDL) or a terminal app;
+that evidence stands until a maintained library appears.
+
+SponsorBlock: web reading — the official API documentation
+(wiki.sponsor.ajay.app): GET /api/skipSegments returns segment times
+as JSON, no key; ajayyy/iSponsorBlock (an iOS jailbreak tweak — proof
+the API is used from iOS, not a reusable library). GitHub,
+"sponsorblock swift", recent and stars: 0xCUB3/wBlock (3,132 stars,
+2026-10-25, Safari content blocker, not a segment client);
+milika/SmartTubeIOS (432, 2026-10-12, a full Swift YouTube client
+with SponsorBlock — precedent, not a library); shirkeharsh/mooziac
+(106, 2026-10-24, macOS player). No Swift client library on Codeberg
+or GitLab either. Verdict: PORTED without a library — the documented
+public API is one GET; SponsorBlockService parses it (unit-tested)
+and AudioPlayer skips segments during stream playback, announced.
+
+SoundCloud: web reading — SoundCloud closed new API registrations in
+2017; the internal api-v2 needs a client_id harvested from the web
+player's JS bundles, which rotates every few weeks (multiple 2026
+guides confirm); the official route is OAuth with a registered app.
+But SoundCloud also serves a native per-user RSS feed at
+feeds.soundcloud.com/users/soundcloud:users:<id>/sounds.rss (verified
+live, HTTP 200), needing nothing. GitHub, "soundcloud api swift":
+delannoyk/SoundcloudSDK (89 stars, 2021-11-14, stale); lerboe/
+SoundCloud (41, 2026-10-23, private api-v2 client — depends on the
+rotating client_id); superturboryan/SoundCloud-Swift (11, 2026-05-31,
+public API client — still needs a registered client_id). Codeberg and
+GitLab: nothing. Verdict: PORTED via the RSS route — a profile URL
+resolves by scraping the user id from the profile page (the app's
+existing YouTube-channel pattern) to the native RSS feed. Playback of
+SoundCloud tracks themselves still needs api-v2 with a harvested
+client_id; subscriptions (new-upload tracking) are the ported part.
+
+Mixcloud: the documented public API (mixcloud.com/developers) serves
+a user's cloudcasts at api.mixcloud.com/<user>/cloudcasts/ with no
+key (verified live). Verdict: PORTED — profile URLs convert to the
+API list URL and FeedParser reads it as a feed. The API exposes no
+direct stream URLs (playback stays in Mixcloud's own player), so
+entries link to the cloudcast pages; that is an API limit, stated.
+
+### B. Casting beyond AirPlay
+
+Web, read: Google's official iOS sender integration guide — its own
+sample initializes GCKCastContext with
+kGCKDefaultMediaReceiverApplicationID, Google's Default Media
+Receiver (CC1AD845), and its media-load walkthrough runs on it; no
+developer registration is involved. Bitmovin's Cast documentation
+confirms the iOS SDK falls back to the default receiver when no app
+id is configured. The 0.1.12 claim "cannot ship without the owner's
+Cast credentials" is therefore REFUTED for media casting; a custom
+receiver (branding, custom namespaces) would still need an owner-
+registered application id, and nothing in the desktop's Caster media
+flow needs one.
+
+GitHub, "google cast ios sdk swift", recent: SRGSSR/castor (16
+stars, pushed 2026-10-26 — a high-level Cast SDK from the Swiss
+broadcaster's engineering org; its 3.x line needs swift-tools 6.4);
+CreatureSurvive/SwiftCast (0, 2026-09-27, pure-Swift sender,
+brand new); tobiaseisenschenk/swift-package-google-cast-sdk (1,
+2024-12-20, thin SPM wrapper). Stars sort: the same three. Google
+itself distributes the iOS SDK only via CocoaPods and manual
+download; SRGSSR/google-cast-sdk is a maintained SPM packaging of
+Google's official xcframework (tools 5.7, current release 4.8.6).
+Codeberg and GitLab: no Cast SDKs, either sort.
+GitHub, "dlna upnp swift ios", recent and stars: yuri-rod/
+smart-tv-remote-swift (2, 2026-10-04, TV remote with some DLNA);
+CreatureSurvive/UPnPCast (0, 2026-09-27, new, unproven). Nothing
+maintained; the desktop's DLNA/Sonos/Roku/Kodi support lives in its
+separate Caster engine, not in a reusable Swift library.
+
+Verdict: Google Cast PORTED — GoogleCast 4.8.6 via the SRGSSR SPM
+packaging, Cast context on the default receiver, a labeled Cast
+button beside AirPlay in the player, and session-start media
+handoff with local pause. DLNA/UPnP and the rest of the Caster
+engine: still blocked on library evidence above; they stay a
+separate-engine feature.
+
+### C. Article translation without a user API key
+
+Web, read: Lingva Translate (open-source Google Translate frontend)
+documents GET /api/v1/<source>/<target>/<text> -> {"translation"};
+its instance list names lingva.ml (official), translate.igna.wtf,
+lingva.lunar.icu, translate.plausibility.cloud,
+translate.projectsegfau.lt, lingva.garudalinux.org and more
+(verified live from this workspace). LibreTranslate's flagship
+instance now requires a key, but its README's mirror table lists
+keyless public mirrors (translate.argosopentech.com,
+translate.terraprint.co, trans.zillyhuhn.com,
+libretranslate.eownerdead.dedyn.io, lt.vern.cc); the endpoint is
+POST /translate -> {"translatedText"}. LiTranslate (an iOS app on
+LibreTranslate) is App Store precedent for shipping this way.
+
+GitHub, "libretranslate client swift", recent and stars:
+wacumov/libretranslate (17 stars, 2025-01-27 — a real Swift client;
+not needed, the endpoint is one POST). GitHub, "lingva translate
+api": no Swift client of note (artdima/LingvanexAPI is a different,
+keyed service); clients are C++/Ruby/Python (aqbifzl/lingva-api,
+cheeaun/lingva-api). GitLab: nesstero/pylingva (1 star, 2024-08-12)
+and mirrors. Codeberg: nothing.
+
+Verdict: PORTED — TranslateService tries six Lingva instances, then
+four LibreTranslate mirrors, per chunk; the reader gains a Translate
+button (target: the device language). No key, no account.
+
+### D. YouTube account features (OAuth, Recommendations)
+
+Web, read: Yattee, the largest open-source iOS YouTube client,
+deliberately ships no Google account login (it uses Invidious/Piped
+backends and their accounts instead) and offers no recommendation
+feed. Google's own iOS OAuth documentation requires an OAuth client
+ID created in the app owner's Google Cloud project, bound to the
+app's bundle ID, with a consent screen; there is no shared or
+third-party client an unrelated app may ship. Code hosts: the query
+"youtube api oauth ios client swift" returned ZERO results on
+GitHub, Codeberg, and GitLab in both sorts — no library ships this.
+
+Verdict: still blocked, on one exact missing credential that only
+Brandon can supply: a Google Cloud project for BlindRSS with an
+iOS OAuth client ID bound to bundle id org.serrebidev.BlindRSS
+(plus its consent screen). With that client id, sign-in and the
+subscriptions/recommendations feeds are a standard integration;
+without it, no code can ship account features. (Invidious/Piped
+public instances would give a non-Google account system, but they
+are third-party proxies with their own reliability and terms; not
+treated as an unlock.)
+
+### E. Forum-thread reading (Reddit, Lemmy, Groups)
+
+Web, read: Lemmy's API documentation (join-lemmy.org) — public
+/api/v3 REST, and multiple client guides confirm read access to
+public communities needs "no login, no API key, and no OAuth";
+GetPost and GetComments are documented endpoints (verified live
+from this workspace). Reddit: Reddit's own deprecation notice for
+unauthenticated JSON access, plus several 2026 reports that .json
+answers 403 since May 2026 across hosts; the supported paths are
+the OAuth Data API (free non-commercial tier, registered and
+approved app, Responsible Builder Policy since November 2025) or
+Devvit. One article claimed .json still works; the weight of
+evidence, including Reddit's own statement, says it is shut.
+
+GitHub, "lemmy api client swift", recent and stars:
+CreatureSurvive/Swimmy (0 stars, 2025-02-04) — the only Swift
+client; unnecessary, the REST endpoints are two GETs. GitHub,
+"reddit api client swift ios": cranci1/Osmium (28, 2025-05-08, a
+cobalt-API client, unrelated); direx99/reddit-bionic-client (0,
+2023-09-02, goes through a custom Node proxy — an admission the
+direct route is closed); dyountmusic/realtimereddit-iOSClient (5,
+2019-04-18, pre-shutdown). Codeberg and GitLab: nothing usable.
+
+Verdict: Lemmy PORTED — post articles from any Lemmy instance gain
+a Load Thread section (post body plus comments, depth-indented).
+Reddit threads: still blocked — the unauthenticated route is shut
+down by Reddit (evidence above); unblocking needs a Reddit API app
+registered and approved under Brandon's own Reddit account, which
+only he can create. Groups.io threads ride the group's native RSS
+(already subscribed); Google Groups has no public API or RSS
+(Google retired both), so its threads stay web-only.
+
+### F. Interface translations (gettext -> String Catalogs)
+
+Web, read: the .xcstrings format is JSON; Xcode resolves SwiftUI
+literal Text/Button titles through Localizable.xcstrings by the
+English source string — the same key gettext uses as msgid.
+Localazy (commercial SaaS) advertises PO -> String Catalog
+conversion; no open-source PO converter appeared in web results.
+The code-host sweep confirms it: GitHub, "xcstrings gettext po
+converter" — ZERO results in both sorts on GitHub, Codeberg, and
+GitLab. GitHub, "string catalog localization tool", recent:
+corrupt952/xckit (5 stars, 2026-10-26, catalog management CLI);
+TheEnd14147/xcode-xcstrings-csv-tool (4, 2026-10-12, CSV-driven);
+jaalbin24/xcstrings-tool (4, 2026-01-16, completeness audits);
+stars sort adds KookyBread/AutoStringsCatalogsTranslator (5,
+2025-09-06) and zhang-hongshen/strings2xcstrings (1, 2024-01-13,
+.strings files, not .po). Every tool is CSV- or strings-based;
+none reads gettext.
+
+Verdict: PORTED with an in-repo tool — tools/po2xcstrings.py
+converts the desktop's 15 catalogs into Localizable.xcstrings:
+1,881 keys, roughly 1,600 translated strings per language, plural
+entries take their first form, and gettext placeholders (%s, %d,
+%(name)s) become catalog specifiers (%@, %lld). SwiftUI literals
+that match desktop strings (Settings, Play, Pause, Add Feed,
+Downloads, and hundreds more) now localize with the device
+language. Honest limits: strings built in code — accessibilityLabel
+values and announcements — are plain Swift Strings that do not pass
+through the catalog and stay English, and iOS-only literals with no
+desktop counterpart stay English until the desktop catalogs gain
+them.
+
+### G. Keyless news search and the Awesome RSS catalogue
+
+Web, read: the Awesome RSS repository (plenaryapp/awesome-rss-
+feeds, 2,853 stars, pushed 2026-10-05) is organized as one OPML
+file per country (25, in with_category and without_category forms)
+and per topic; the Plenary app's own design fetches a single file
+when a country is opened. The 0.1.12 objection ("dozens of bulk
+OPML fetches per search") misread the structure: search never
+fetches anything; browsing fetches one file. NewsAPI and
+TheNewsAPI remain key-only (their Swift clients, e.g.
+lucaslimapoa/NewsAPISwift, 25 stars, 2018-06-28, still require a
+developer key); the keyless headline-search function is already
+covered by the Google News and Bing News RSS directories ported in
+0.1.12. GitHub, "awesome rss feeds", stars: plenaryapp/
+awesome-rss-feeds first (2,853); GitLab carries only a
+deletion-scheduled mirror (0 stars, 2026-10-02); Codeberg nothing.
+
+Verdict: catalogue PORTED — Discover gains a Browse Awesome RSS
+Catalogue section (25 countries, 41 topics); opening an entry
+downloads exactly one OPML file and lists its feeds for one-tap
+subscribe, grouped by the OPML's own categories. Keyed news APIs
+stay keyed, with the keyless RSS directories as the shipped
+equivalent.

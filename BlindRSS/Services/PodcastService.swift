@@ -535,6 +535,11 @@ enum SocialResolver {
         if parts.count >= 2, parts[0] == "m" {
             return "\(base)/m/\(parts[1])/rss"
         }
+        // Mixcloud user pages: the documented public API's cloudcast
+        // list, which FeedParser reads as a feed (research 0.1.13).
+        if host == "www.mixcloud.com" || host == "mixcloud.com", parts.count == 1 {
+            return "https://api.mixcloud.com/\(parts[0])/cloudcasts/?limit=100"
+        }
         // GitHub repository pages: the repo's release feed.
         if host == "github.com", parts.count == 2,
            !["search", "explore", "topics", "settings", "login", "signup", "features", "about"].contains(parts[0]) {
@@ -549,6 +554,36 @@ enum SocialResolver {
             return "\(base)/tags/\(parts[1]).rss"
         }
         return nil
+    }
+
+    static func isSoundCloudProfile(_ raw: String) -> Bool {
+        guard let url = URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let host = url.host?.lowercased(), host == "soundcloud.com" || host == "www.soundcloud.com"
+        else { return false }
+        // Profile pages are a single path segment ("/<artist>"); track
+        // and playlist pages are two or more and are not subscriptions.
+        return url.path.split(separator: "/").count == 1
+    }
+
+    /// A SoundCloud profile page carries the user's numeric id in its
+    /// HTML ("soundcloud:users:<id>"); the native per-user RSS feed
+    /// (feeds.soundcloud.com) hangs off that id — the same scrape
+    /// pattern as YouTube channel pages (research 0.1.13). SoundCloud's
+    /// API itself needs a client_id from a registration programme that
+    /// has been closed since 2017; the RSS feed needs nothing.
+    static func soundCloudFeedURL(pageURL raw: String) async -> String? {
+        guard let url = URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let (data, response) = try? await URLSession.shared.data(from: url),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let html = String(data: data, encoding: .utf8) else { return nil }
+        return Self.soundCloudFeedURL(fromProfileHTML: html)
+    }
+
+    static func soundCloudFeedURL(fromProfileHTML html: String) -> String? {
+        guard let start = html.range(of: "soundcloud:users:") else { return nil }
+        let id = html[start.upperBound...].prefix(while: \.isNumber)
+        guard id.count >= 4 else { return nil }
+        return "https://feeds.soundcloud.com/users/soundcloud:users:\(id)/sounds.rss"
     }
 
     static func isYouTubeChannelPage(_ raw: String) -> Bool {

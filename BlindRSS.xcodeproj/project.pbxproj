@@ -38,6 +38,20 @@
 		24F9EB139B44271CBA564646 /* Announcer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F46C8F5D473F5D24AD6ADBF /* Announcer.swift */; };
 		8497429892BAD65B48B41FDA /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE6EC2D2285BB0CAE68F1CCF /* LibraryStore.swift */; };
 		E1E2053F31A04C8C877B9C60 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643E85DCDC12BC82C49FAD36 /* Downloads.swift */; };
+		2238A4DE92FBF4EED1DF6FED /* SponsorBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50254295DD1CCEAD1F74777 /* SponsorBlock.swift */; };
+		439497F4B06B9DF54BBAA792 /* SponsorBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27CE2C027BC5E9FF98481297 /* SponsorBlock.swift */; };
+		FF21B22DA55F1450F54ECC4E /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13500C7B2EC311E125059E05 /* TranslationService.swift */; };
+		E2C1034E21FFA80E88C6E176 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA9C6AFF837FB6030D9A4318 /* TranslationService.swift */; };
+		5E578A919047CB4175ABC103 /* ForumService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A148B4A539BE7156E3B04788 /* ForumService.swift */; };
+		BAF134D0008490E8540AD2F2 /* ForumService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B88320343F85C9C62C90EB /* ForumService.swift */; };
+		C8022F3910B36E53555B2554 /* AwesomeRSS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23D327DED6E1D66ED0E8776F /* AwesomeRSS.swift */; };
+		BEFE4A1C4086CA6CADF30F29 /* AwesomeRSS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727FFE605F9C180662BE701D /* AwesomeRSS.swift */; };
+		B35B06A21C0A0176D88CEE5A /* YouTubeStreams.swift in Sources */ = {isa = PBXBuildFile; fileRef = F618A3E776E9C50568DE60D9 /* YouTubeStreams.swift */; };
+		584140D6E684CD1D82A63B79 /* CastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BD38032DA3EDD14A20B112D /* CastService.swift */; };
+		6CA870E750D8449A6454BAC4 /* ResearchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4215F67A61D79236B0978E9 /* ResearchViews.swift */; };
+		4695A8096C481D634D802CF3 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A5E0E05C09474BEFC87C12BA /* Localizable.xcstrings */; };
+		8BDAA09D8DC472CFFFAC3A24 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = C9188769B9A1DE64EFF95B7D /* YouTubeKit */; };
+		B9894548C0C94C3B091AB485 /* GoogleCast in Frameworks */ = {isa = PBXBuildFile; productRef = 7FA078D973A11001458A4F99 /* GoogleCast */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,6 +99,18 @@
 		5F46C8F5D473F5D24AD6ADBF /* Announcer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/Announcer.swift"; sourceTree = "<group>"; };
 		EE6EC2D2285BB0CAE68F1CCF /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/LibraryStore.swift"; sourceTree = "<group>"; };
 		643E85DCDC12BC82C49FAD36 /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/Downloads.swift"; sourceTree = "<group>"; };
+		D50254295DD1CCEAD1F74777 /* SponsorBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SponsorBlock.swift; sourceTree = "<group>"; };
+		27CE2C027BC5E9FF98481297 /* SponsorBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/SponsorBlock.swift"; sourceTree = "<group>"; };
+		13500C7B2EC311E125059E05 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
+		FA9C6AFF837FB6030D9A4318 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/TranslationService.swift"; sourceTree = "<group>"; };
+		A148B4A539BE7156E3B04788 /* ForumService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForumService.swift; sourceTree = "<group>"; };
+		87B88320343F85C9C62C90EB /* ForumService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/ForumService.swift"; sourceTree = "<group>"; };
+		23D327DED6E1D66ED0E8776F /* AwesomeRSS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AwesomeRSS.swift; sourceTree = "<group>"; };
+		727FFE605F9C180662BE701D /* AwesomeRSS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../BlindRSS/Services/AwesomeRSS.swift"; sourceTree = "<group>"; };
+		F618A3E776E9C50568DE60D9 /* YouTubeStreams.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeStreams.swift; sourceTree = "<group>"; };
+		2BD38032DA3EDD14A20B112D /* CastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CastService.swift; sourceTree = "<group>"; };
+		A4215F67A61D79236B0978E9 /* ResearchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchViews.swift; sourceTree = "<group>"; };
+		A5E0E05C09474BEFC87C12BA /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +118,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8BDAA09D8DC472CFFFAC3A24 /* YouTubeKit in Frameworks */,
+				B9894548C0C94C3B091AB485 /* GoogleCast in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -122,6 +150,7 @@
 				E43CB2F387334F0765C2AA5E /* Services */,
 				2D7123010710F1CD7968A206 /* Views */,
 				D6716BFED10C9866B9FC4167 /* Assets.xcassets */,
+				A5E0E05C09474BEFC87C12BA /* Localizable.xcstrings */,
 			);
 			path = BlindRSS;
 			sourceTree = "<group>";
@@ -148,6 +177,12 @@
 				B6C31FB855687D1E51424EE8 /* YouTube.swift */,
 				6C5FF1069F4650FEF6E94591 /* AudioProcessor.swift */,
 				009AE3267FCF66033C7E7029 /* PodcastService.swift */,
+				D50254295DD1CCEAD1F74777 /* SponsorBlock.swift */,
+				13500C7B2EC311E125059E05 /* TranslationService.swift */,
+				A148B4A539BE7156E3B04788 /* ForumService.swift */,
+				23D327DED6E1D66ED0E8776F /* AwesomeRSS.swift */,
+				F618A3E776E9C50568DE60D9 /* YouTubeStreams.swift */,
+				2BD38032DA3EDD14A20B112D /* CastService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -162,6 +197,7 @@
 				94093B1014F2F21AA2771580 /* PlayerViews.swift */,
 				EB8AEE7E1E38871CE9EAC76B /* AddFeedView.swift */,
 				8CA295F141778656B8F77BC1 /* ManageViews.swift */,
+				A4215F67A61D79236B0978E9 /* ResearchViews.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -180,6 +216,10 @@
 				5F46C8F5D473F5D24AD6ADBF /* Announcer.swift */,
 				EE6EC2D2285BB0CAE68F1CCF /* LibraryStore.swift */,
 				643E85DCDC12BC82C49FAD36 /* Downloads.swift */,
+				27CE2C027BC5E9FF98481297 /* SponsorBlock.swift */,
+				FA9C6AFF837FB6030D9A4318 /* TranslationService.swift */,
+				87B88320343F85C9C62C90EB /* ForumService.swift */,
+				727FFE605F9C180662BE701D /* AwesomeRSS.swift */,
 			);
 			path = BlindRSSTests;
 			sourceTree = "<group>";
@@ -211,6 +251,10 @@
 			name = BlindRSS;
 			productName = BlindRSS;
 			productReference = BAB35C5E857793184326E99B /* BlindRSS.app */;
+			packageProductDependencies = (
+				C9188769B9A1DE64EFF95B7D /* YouTubeKit */,
+							7FA078D973A11001458A4F99 /* GoogleCast */,
+);
 			productType = "com.apple.product-type.application";
 		};
 		2F4625F9C64176C169FB9E4C /* BlindRSSTests */ = {
@@ -236,6 +280,10 @@
 /* Begin PBXProject section */
 		AB1BF79258C6A2BD5DEA3A4C /* Project object */ = {
 			isa = PBXProject;
+			packageReferences = (
+				D70EE6BA8F57CC59A8FEBDA2 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
+				04E12C49E0DB16C71037A3A8 /* XCRemoteSwiftPackageReference "GoogleCast" */,
+			);
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
@@ -257,6 +305,21 @@
 			knownRegions = (
 				en,
 				Base,
+				de,
+				es,
+				fr,
+				hi,
+				it,
+				ja,
+				nl,
+				"nl-BE",
+				pl,
+				"pt-BR",
+				"pt-PT",
+				ru,
+				sv,
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = E3D3AA5070650F738241942D;
 			productRefGroup = EFD949CBAE9C01A712287B15 /* Products */;
@@ -275,6 +338,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				008AA80755FEA8D8DD302FD9 /* Assets.xcassets in Resources */,
+				4695A8096C481D634D802CF3 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -312,6 +376,13 @@
 				AA9DE3DDA40377030E03D038 /* PlayerViews.swift in Sources */,
 				847B1724DC36DCA8FF90BAE6 /* AddFeedView.swift in Sources */,
 				9C88F3D44616A3238B38DA4B /* ManageViews.swift in Sources */,
+				2238A4DE92FBF4EED1DF6FED /* SponsorBlock.swift in Sources */,
+				FF21B22DA55F1450F54ECC4E /* TranslationService.swift in Sources */,
+				5E578A919047CB4175ABC103 /* ForumService.swift in Sources */,
+				C8022F3910B36E53555B2554 /* AwesomeRSS.swift in Sources */,
+				B35B06A21C0A0176D88CEE5A /* YouTubeStreams.swift in Sources */,
+				584140D6E684CD1D82A63B79 /* CastService.swift in Sources */,
+				6CA870E750D8449A6454BAC4 /* ResearchViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -330,6 +401,10 @@
 				24F9EB139B44271CBA564646 /* Announcer.swift in Sources */,
 				8497429892BAD65B48B41FDA /* LibraryStore.swift in Sources */,
 				E1E2053F31A04C8C877B9C60 /* Downloads.swift in Sources */,
+				439497F4B06B9DF54BBAA792 /* SponsorBlock.swift in Sources */,
+				E2C1034E21FFA80E88C6E176 /* TranslationService.swift in Sources */,
+				BAF134D0008490E8540AD2F2 /* ForumService.swift in Sources */,
+				BEFE4A1C4086CA6CADF30F29 /* AwesomeRSS.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -368,14 +443,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_FILE = BlindRSS/Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.12;
+				MARKETING_VERSION = 0.1.13;
 				ENABLE_TESTING = YES;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -392,14 +467,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_FILE = BlindRSS/Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.12;
+				MARKETING_VERSION = 0.1.13;
 				ENABLE_TESTING = YES;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -473,6 +548,44 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+/* Begin XCRemoteSwiftPackageReference section */
+		D70EE6BA8F57CC59A8FEBDA2 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alexeichhorn/YouTubeKit";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.4.10;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C9188769B9A1DE64EFF95B7D /* YouTubeKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D70EE6BA8F57CC59A8FEBDA2 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
+			productName = YouTubeKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		04E12C49E0DB16C71037A3A8 /* XCRemoteSwiftPackageReference "GoogleCast" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SRGSSR/google-cast-sdk.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 4.8.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7FA078D973A11001458A4F99 /* GoogleCast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 04E12C49E0DB16C71037A3A8 /* XCRemoteSwiftPackageReference "GoogleCast" */;
+			productName = GoogleCast;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AB1BF79258C6A2BD5DEA3A4C /* Project object */;
 }
+
