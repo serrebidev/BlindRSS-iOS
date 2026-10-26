@@ -273,7 +273,13 @@ final class FilterRule {
     /// This rule's boolean actions: the do* flags, falling back to the
     /// legacy single action for rules saved before they existed.
     var effectiveActions: (markRead: Bool, favorite: Bool, delete: Bool) {
-        if doMarkRead || doFavorite || doDelete { return (doMarkRead, doFavorite, doDelete) }
+        // The legacy fallback applies only when the rule carries no
+        // new-style action at all; a rule whose only actions are
+        // skip/move/label must not resurrect its legacy single action.
+        if doMarkRead || doFavorite || doDelete || skipNotification
+            || !moveCategory.isEmpty || !labelCategory.isEmpty {
+            return (doMarkRead, doFavorite, doDelete)
+        }
         return (action == "markRead", action == "favorite", action == "delete")
     }
 
