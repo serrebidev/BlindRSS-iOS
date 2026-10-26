@@ -419,8 +419,9 @@ final class ParityFeatureTests: XCTestCase {
         XCTAssertTrue(afterStop.markRead)
         XCTAssertFalse(afterStop.favorite)
 
-        let mover = FilterRule(name: "m", field: "title", contains: "swift", action: "markRead", position: 0)
-        mover.doMarkRead = false
+        // A move/label-only rule as the 0.1.12 form creates it: no legacy
+        // action, so the fallback adds nothing.
+        let mover = FilterRule(name: "m", field: "title", contains: "swift", action: "", position: 0)
         mover.moveCategory = "Tech"
         mover.labelCategory = "Swift"
         mover.skipNotification = true

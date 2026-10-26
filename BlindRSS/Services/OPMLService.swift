@@ -148,21 +148,23 @@ enum TakeoutService {
     }
 
     /// Minimal quoted-CSV parser (commas, quotes, "" escapes, CRLF).
+    /// Iterates unicode scalars, not Characters: CRLF is a single
+    /// grapheme cluster, so Character-wise checks never see the CR.
     static func parseCSV(_ text: String) -> [[String]] {
         var rows: [[String]] = []
         var row: [String] = []
         var field = ""
         var inQuotes = false
-        let chars = Array(text)
+        let scalars = Array(text.unicodeScalars)
         var i = 0
         func endField() { row.append(field); field = "" }
         func endRow() { endField(); rows.append(row); row = [] }
-        while i < chars.count {
-            let c = chars[i]
+        while i < scalars.count {
+            let c = scalars[i]
             if inQuotes {
                 if c == "\"" {
-                    if i + 1 < chars.count, chars[i + 1] == "\"" { field.append("\""); i += 1 } else { inQuotes = false }
-                } else { field.append(c) }
+                    if i + 1 < scalars.count, scalars[i + 1] == "\"" { field.unicodeScalars.append("\""); i += 1 } else { inQuotes = false }
+                } else { field.unicodeScalars.append(c) }
             } else if c == "\"" {
                 inQuotes = true
             } else if c == "," {
@@ -174,10 +176,10 @@ enum TakeoutService {
                 // so it never matches the "\n" or "\r" cases above.
                 endRow()
             } else if c == "\r" {
-                if i + 1 < chars.count, chars[i + 1] == "\n" { i += 1 }
+                if i + 1 < scalars.count, scalars[i + 1] == "\n" { i += 1 }
                 endRow()
             } else {
-                field.append(c)
+                field.unicodeScalars.append(c)
             }
             i += 1
         }

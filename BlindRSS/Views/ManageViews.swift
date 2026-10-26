@@ -173,7 +173,11 @@ struct FilterRulesView: View {
                 Toggle("Stop Processing Further Rules", isOn: $stop).accessibilityLabel("Stop Processing Further Rules")
                 Button("Create Filter Rule") {
                     guard !name.isEmpty, !contains.isEmpty else { return }
-                    let legacy = doDelete ? "delete" : (doFavorite ? "favorite" : "markRead")
+                    // The legacy single action mirrors the toggles; with
+                    // none of the three chosen it stays empty, so a
+                    // move/label-only rule gains no phantom action from
+                    // the pre-0.1.12 fallback in effectiveActions.
+                    let legacy = doDelete ? "delete" : (doFavorite ? "favorite" : (doMarkRead ? "markRead" : ""))
                     let rule = FilterRule(name: name, field: field, contains: contains, action: legacy, position: rules.count)
                     rule.doMarkRead = doMarkRead
                     rule.doFavorite = doFavorite
