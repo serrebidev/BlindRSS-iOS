@@ -169,6 +169,10 @@ enum TakeoutService {
                 endField()
             } else if c == "\n" {
                 endRow()
+            } else if c == "\r\n" {
+                // CRLF is a single Character (grapheme cluster) in Swift,
+                // so it never matches the "\n" or "\r" cases above.
+                endRow()
             } else if c == "\r" {
                 if i + 1 < chars.count, chars[i + 1] == "\n" { i += 1 }
                 endRow()
