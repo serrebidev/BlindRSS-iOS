@@ -521,14 +521,14 @@ final class ParityFeatureTests: XCTestCase {
             u16(0, &local); u16(0, &local); u32(0, &local)
             u32(UInt32(payload.count), &local); u32(UInt32(entry.data.count), &local)
             u16(UInt16(nameBytes.count), &local); u16(0, &local)
-            out.append(local); out.append(nameBytes); out.append(payload)
+            out.append(local); out.append(contentsOf: nameBytes); out.append(payload)
             var record = Data()
             u32(0x0201_4B50, &record); u16(20, &record); u16(20, &record); u16(0, &record); u16(method, &record)
             u16(0, &record); u16(0, &record); u32(0, &record)
             u32(UInt32(payload.count), &record); u32(UInt32(entry.data.count), &record)
             u16(UInt16(nameBytes.count), &record); u16(0, &record); u16(0, &record)
             u16(0, &record); u16(0, &record); u32(0, &record); u32(UInt32(offset), &record)
-            central.append(record); central.append(nameBytes)
+            central.append(record); central.append(contentsOf: nameBytes)
         }
         let centralOffset = out.count
         out.append(central)
