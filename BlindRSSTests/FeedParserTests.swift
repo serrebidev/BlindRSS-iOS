@@ -754,12 +754,53 @@ final class YouTubeAuthTests: XCTestCase {
     func testBrowseParsesGridVideoRenderers() {
         // TV browse shape: grid items with overlay durations.
         let json = """
-        {"contents":{"tvBrowseRenderer":{"content":{"tvSurfaceContentRenderer":{"content":{"gridRenderer":{"items":[
-          {"gridVideoRenderer":{"videoId":"grid1234567","title":{"runs":[{"text":"Grid Video"}]},
-            "shortBylineText":{"runs":[{"text":"Grid Channel"}]},
-            "publishedTimeText":{"simpleText":"2 days ago"},
-            "thumbnailOverlays":[{"thumbnailOverlayTimeStatusRenderer":{"text":{"simpleText":"8:12"}}}]}}
-        ]}}}}}}}}
+{
+ "contents": {
+  "tvBrowseRenderer": {
+   "content": {
+    "tvSurfaceContentRenderer": {
+     "content": {
+      "gridRenderer": {
+       "items": [
+        {
+         "gridVideoRenderer": {
+          "videoId": "grid1234567",
+          "title": {
+           "runs": [
+            {
+             "text": "Grid Video"
+            }
+           ]
+          },
+          "shortBylineText": {
+           "runs": [
+            {
+             "text": "Grid Channel"
+            }
+           ]
+          },
+          "publishedTimeText": {
+           "simpleText": "2 days ago"
+          },
+          "thumbnailOverlays": [
+           {
+            "thumbnailOverlayTimeStatusRenderer": {
+             "text": {
+              "simpleText": "8:12"
+             }
+            }
+           }
+          ]
+         }
+        }
+       ]
+      }
+     }
+    }
+   }
+  }
+ }
+}
         """
         let results = YouTubeService.parseSearchResults(Data(json.utf8))
         XCTAssertEqual(results.count, 1)
