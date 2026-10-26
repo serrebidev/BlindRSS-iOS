@@ -15,7 +15,7 @@ struct BlindRSSApp: App {
         do {
             return try ModelContainer(for: Feed.self, Article.self, Category.self,
                                       Chapter.self, PlaybackState.self, DeletedArticle.self,
-                                      SmartFolder.self, FilterRule.self)
+                                      SmartFolder.self, FilterRule.self, SavedSearch.self)
         } catch {
             fatalError("The library could not be opened: \(error)")
         }

@@ -34,13 +34,35 @@ struct ContentView: View {
         return nil
     }
 
+    private var selectedSearch: SavedSearch? {
+        if case .savedSearch(let search)? = sidebarSelection { return search }
+        return nil
+    }
+
+    private var selectedCategoryName: String? {
+        if case .category(let name)? = sidebarSelection { return name }
+        return nil
+    }
+
+    /// Desktop remembers the last tree selection (last_view /
+    /// last_feed_id in state.json) and restores it at launch.
+    @AppStorage("lastSidebarView") private var lastSidebarView = ""
+    @AppStorage("lastSidebarFeedID") private var lastSidebarFeedID = ""
+    @State private var didRestoreSelection = false
+
+    private var contentTitle: String {
+        selectedFeed?.title ?? selectedSearch?.name ?? selectedCategoryName ?? selectedView.title
+    }
+
     var body: some View {
         NavigationSplitView {
             FeedListView(selection: $sidebarSelection)
                 .navigationTitle("Feeds")
         } content: {
-            ArticleListView(selection: selectedView, feed: selectedFeed, selectedArticle: $selectedArticle)
-                .navigationTitle(selectedFeed?.title ?? selectedView.title)
+            ArticleListView(selection: selectedView, feed: selectedFeed,
+                            savedSearch: selectedSearch, categoryName: selectedCategoryName,
+                            selectedArticle: $selectedArticle)
+                .navigationTitle(contentTitle)
         } detail: {
             if let article = selectedArticle {
                 // New identity per article: on iPad the reader stayed on
@@ -65,13 +87,77 @@ struct ContentView: View {
         .accessibilityAction(.magicTap) {
             player.togglePlayPause()
         }
-        .onAppear { wirePlaybackState() }
+        .onAppear { wirePlaybackState(); restoreSelection() }
         // A new feed or view starts with no article open; a stale one
         // would jump straight to the old reader on iPhone.
-        .onChange(of: sidebarSelection) { selectedArticle = nil }
+        .onChange(of: sidebarSelection) {
+            selectedArticle = nil
+            rememberSelection()
+        }
+        // Desktop Ctrl+1..5 switch library views; mirrored as Cmd+1..5.
+        .background {
+            ZStack {
+                ForEach(Array(LibrarySelection.allCases.enumerated()), id: \.element) { index, view in
+                    Button(view.title) { sidebarSelection = .library(view) }
+                        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                }
+            }
+            .opacity(0)
+            .accessibilityHidden(true)
+        }
         // Automatic refresh (desktop refresh_interval) while the app is
         // open; BlindRSSApp asks iOS for background refreshes otherwise.
         .task(id: "\(refreshInterval) \(scenePhase == .active)") { await autoRefreshLoop() }
+    }
+
+    private func restoreSelection() {
+        guard !didRestoreSelection else { return }
+        didRestoreSelection = true
+        guard sidebarSelection == nil else { return }
+        if !lastSidebarFeedID.isEmpty {
+            let feedID = lastSidebarFeedID
+            let feeds = (try? context.fetch(FetchDescriptor<Feed>(
+                predicate: #Predicate { $0.id == feedID }))) ?? []
+            if let feed = feeds.first {
+                sidebarSelection = .feed(feed)
+                return
+            }
+        }
+        if lastSidebarView.hasPrefix("search:") {
+            let searchID = String(lastSidebarView.dropFirst("search:".count))
+            let searches = (try? context.fetch(FetchDescriptor<SavedSearch>(
+                predicate: #Predicate { $0.id == searchID }))) ?? []
+            if let search = searches.first {
+                sidebarSelection = .savedSearch(search)
+                return
+            }
+        }
+        if lastSidebarView.hasPrefix("category:") {
+            sidebarSelection = .category(String(lastSidebarView.dropFirst("category:".count)))
+            return
+        }
+        if let view = LibrarySelection(rawValue: lastSidebarView) {
+            sidebarSelection = .library(view)
+        }
+    }
+
+    private func rememberSelection() {
+        switch sidebarSelection {
+        case .feed(let feed):
+            lastSidebarFeedID = feed.id
+            lastSidebarView = ""
+        case .library(let view):
+            lastSidebarView = view.rawValue
+            lastSidebarFeedID = ""
+        case .savedSearch(let search):
+            lastSidebarView = "search:\(search.id)"
+            lastSidebarFeedID = ""
+        case .category(let name):
+            lastSidebarView = "category:\(name)"
+            lastSidebarFeedID = ""
+        case nil:
+            break
+        }
     }
 
     /// Refresh on startup, then every interval, counted from the last
@@ -154,10 +240,13 @@ struct ContentView: View {
     }
 }
 
-/// One sidebar row: a fixed library view or a feed.
+/// One sidebar row: a fixed library view, a feed, a persistent search,
+/// or a browsable article category.
 enum SidebarItem: Hashable {
     case library(LibrarySelection)
     case feed(Feed)
+    case savedSearch(SavedSearch)
+    case category(String)
 }
 
 /// The desktop's fixed views: All / Unread / Read / Favorites, plus Errors.

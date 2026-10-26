@@ -251,3 +251,294 @@ final class OPMLServiceTests: XCTestCase {
         XCTAssertEqual(feeds.first { $0.title == "Loose" }?.category, "Uncategorized")
     }
 }
+
+// MARK: - 0.1.12 desktop-parity features
+
+import Compression
+
+final class ParityFeatureTests: XCTestCase {
+
+    // MARK: Feed description
+
+    func testChannelDescriptionBecomesFeedDescription() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel>
+        <title>Described Pod</title><link>https://example.com</link>
+        <description>All about examples</description>
+        <item><title>Ep</title><link>https://example.com/1</link><guid>g1</guid>
+        <description>Episode notes</description></item>
+        </channel></rss>
+        """
+        let feed = try FeedParser.parse(data: Data(xml.utf8), sourceURL: URL(string: "https://example.com/feed.xml")!)
+        XCTAssertEqual(feed.feedDescription, "All about examples")
+        XCTAssertEqual(feed.entries.first?.summaryHTML, "Episode notes")
+    }
+
+    // MARK: Takeout
+
+    func testTakeoutCSVParsing() {
+        let csv = "Channel ID,Channel URL,Channel title\r\nUCabc123,https://www.youtube.com/channel/UCabc123,\"Chan, nel\"\r\nUCdef456,https://www.youtube.com/channel/UCdef456,Plain\n"
+        let entries = TakeoutService.csvEntries(text: csv, idHeader: "channel id", titleHeader: "channel title",
+                                                template: "https://www.youtube.com/feeds/videos.xml?channel_id={id}")
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries.first?.title, "Chan, nel")
+        XCTAssertEqual(entries.first?.feedURL, "https://www.youtube.com/feeds/videos.xml?channel_id=UCabc123")
+    }
+
+    func testTakeoutZIPRoundTrip() {
+        let subscriptions = "Channel ID,Channel URL,Channel title\nUCabc123,https://www.youtube.com/channel/UCabc123,Chan\n"
+        let playlists = "Playlist ID,Playlist title (original)\nPLxyz789,My List\n"
+        let history = "<html><a href=\"https://www.youtube.com/channel/UChist999\">Watched</a></html>"
+        let zip = Self.makeZIP(entries: [
+            (name: "Takeout/YouTube and YouTube Music/subscriptions/subscriptions.csv", data: Data(subscriptions.utf8), deflate: false),
+            (name: "Takeout/YouTube and YouTube Music/playlists/playlists.csv", data: Data(playlists.utf8), deflate: true),
+            (name: "Takeout/YouTube and YouTube Music/history/watch-history.html", data: Data(history.utf8), deflate: false),
+        ])
+        let entries = TakeoutService.feedEntries(fromTakeout: zip)
+        let urls = Set(entries.map(\.feedURL))
+        XCTAssertTrue(urls.contains("https://www.youtube.com/feeds/videos.xml?channel_id=UCabc123"))
+        XCTAssertTrue(urls.contains("https://www.youtube.com/feeds/videos.xml?playlist_id=PLxyz789"))
+        XCTAssertTrue(urls.contains("https://www.youtube.com/feeds/videos.xml?channel_id=UChist999"))
+    }
+
+    // MARK: Directories
+
+    func testDirectoryExtractors() {
+        let fyyd = DirectorySearch.parseFyyd(Data(#"{"data":[{"title":"Pod A","author":"Ann","xmlURL":"https://a.example/feed.xml"}]}"#.utf8))
+        XCTAssertEqual(fyyd.first?.url, "https://a.example/feed.xml")
+        XCTAssertEqual(fyyd.first?.source, "fyyd")
+
+        let podverse = DirectorySearch.parsePodverse(Data(#"[[{"title":"Pod B","feedUrls":[{"url":"https://b.example/feed.xml"}]}],1]"#.utf8))
+        XCTAssertEqual(podverse.first?.url, "https://b.example/feed.xml")
+
+        let feedly = DirectorySearch.parseFeedly(Data(#"{"results":[{"feedId":"feed/https://c.example/rss","title":"Blog C"}]}"#.utf8))
+        XCTAssertEqual(feedly.first?.url, "https://c.example/rss")
+
+        let newsblur = DirectorySearch.parseNewsBlur(Data(#"{"feeds":[{"value":"https://d.example/feed","label":"Blog D","tagline":"","num_subscribers":3}]}"#.utf8))
+        XCTAssertEqual(newsblur.first?.url, "https://d.example/feed")
+
+        let reddit = DirectorySearch.parseReddit(Data(#"{"data":{"children":[{"data":{"display_name":"swift","public_description":""}}]}}"#.utf8))
+        XCTAssertEqual(reddit.first?.url, "https://www.reddit.com/r/swift/.rss")
+
+        let lemmy = DirectorySearch.parseCommunities(
+            Data(#"{"communities":[{"community":{"title":"Swift","name":"swift","actor_id":"https://lemmy.world/c/swift"}}]}"#.utf8), source: "Lemmy")
+        XCTAssertEqual(lemmy.first?.url, "https://lemmy.world/feeds/c/swift.xml")
+
+        let kbin = DirectorySearch.communityFeedURL(actorID: "https://kbin.example/m/swift")
+        XCTAssertEqual(kbin, "https://kbin.example/m/swift/rss")
+
+        let mastodon = DirectorySearch.parseMastodon(
+            Data(#"{"accounts":[{"display_name":"Ann","url":"https://mastodon.social/@ann"}],"hashtags":[{"name":"swift"}]}"#.utf8),
+            instance: "https://mastodon.social")
+        XCTAssertEqual(Set(mastodon.map(\.url)),
+                       Set(["https://mastodon.social/@ann.rss", "https://mastodon.social/tags/swift.rss"]))
+
+        let bluesky = DirectorySearch.parseBluesky(Data(#"{"actors":[{"handle":"ann.bsky.social","displayName":"Ann"}]}"#.utf8))
+        XCTAssertEqual(bluesky.first?.url, "https://bsky.app/profile/ann.bsky.social/rss")
+
+        let news = DirectorySearch.constructedNewsResults(term: "space flight")
+        XCTAssertEqual(news.count, 2)
+        XCTAssertTrue(news[0].url.hasPrefix("https://news.google.com/rss/search?q=space"))
+        XCTAssertTrue(news[1].url.contains("bing.com/news/search"))
+    }
+
+    func testGroupsIOAndFeedspotExtraction() {
+        let groups = DirectorySearch.parseGroupsIO("<a href=\"/g/podcasts\">Podcast Group</a> <a href=\"https://groups.io/g/radio\">Radio</a>")
+        XCTAssertEqual(Set(groups.map(\.url)),
+                       Set(["https://groups.io/g/podcasts/rss", "https://groups.io/g/radio/rss"]))
+
+        let html = "<h3 class=\"feed_heading\"><a href=\"https://rss.feedspot.com/x\">Cool Blog</a></h3><a class=\"ext\" href=\"https://cool.example/feed.xml\">Feed</a>"
+        let feedspot = DirectorySearch.parseFeedspot(html)
+        XCTAssertEqual(feedspot.first?.url, "https://cool.example/feed.xml")
+        XCTAssertEqual(feedspot.first?.title, "Cool Blog")
+    }
+
+    // MARK: Social resolution
+
+    func testSocialResolver() {
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://www.reddit.com/r/swift"),
+                       "https://www.reddit.com/r/swift/.rss")
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://mastodon.social/@ann"),
+                       "https://mastodon.social/@ann.rss")
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://bsky.app/profile/ann.bsky.social"),
+                       "https://bsky.app/profile/ann.bsky.social/rss")
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://lemmy.world/c/swift"),
+                       "https://lemmy.world/feeds/c/swift.xml")
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://groups.io/g/podcasts"),
+                       "https://groups.io/g/podcasts/rss")
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://github.com/serrebidev/BlindRSS"),
+                       "https://github.com/serrebidev/BlindRSS/releases.atom")
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://www.youtube.com/playlist?list=PLxyz"),
+                       "https://www.youtube.com/feeds/videos.xml?playlist_id=PLxyz")
+        XCTAssertEqual(SocialResolver.feedURL(forPageURL: "https://www.youtube.com/channel/UCabc1234567"),
+                       "https://www.youtube.com/feeds/videos.xml?channel_id=UCabc1234567")
+        XCTAssertNil(SocialResolver.feedURL(forPageURL: "https://example.com/blog/post"))
+        XCTAssertNil(SocialResolver.feedURL(forPageURL: "https://www.youtube.com/watch?v=abc"))
+        XCTAssertTrue(SocialResolver.isYouTubeChannelPage("https://www.youtube.com/@SomeHandle"))
+        XCTAssertFalse(SocialResolver.isYouTubeChannelPage("https://www.youtube.com/watch?v=abc"))
+    }
+
+    func testYouTubeChannelPageExtraction() {
+        let html = "<script>var x = {\"channelId\":\"UCabcdefghij1234567890\",\"other\":1};</script>"
+        XCTAssertEqual(SocialResolver.channelFeedURL(fromChannelPageHTML: html),
+                       "https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghij1234567890")
+    }
+
+    // MARK: YouTube transcript
+
+    func testTranscriptJSON3() {
+        let json = #"{"events":[{"segs":[{"utf8":"Hello "},{"utf8":"world."}]},{"segs":[{"utf8":"[Music]"}]},{"segs":[{"utf8":"Second line here."}]}]}"#
+        let paragraphs = YouTubeService.parseTranscriptJSON3(Data(json.utf8))
+        XCTAssertEqual(paragraphs, ["Hello world. Second line here."])
+    }
+
+    func testCaptionTrackPreference() {
+        let manual = #"{"captions":{"playerCaptionsTracklistRenderer":{"captionTracks":[{"baseUrl":"https://example.com/asr","kind":"asr"},{"baseUrl":"https://example.com/manual"}]}}}"#
+        XCTAssertEqual(YouTubeService.captionTrackURL(fromPlayerResponse: Data(manual.utf8))?.absoluteString,
+                       "https://example.com/manual&fmt=json3")
+        let asrOnly = #"{"captions":{"playerCaptionsTracklistRenderer":{"captionTracks":[{"baseUrl":"https://example.com/asr","kind":"asr"}]}}}"#
+        XCTAssertEqual(YouTubeService.captionTrackURL(fromPlayerResponse: Data(asrOnly.utf8))?.absoluteString,
+                       "https://example.com/asr&fmt=json3")
+        XCTAssertNil(YouTubeService.captionTrackURL(fromPlayerResponse: Data("{}".utf8)))
+    }
+
+    // MARK: Filter pipeline
+
+    func testFilterPipelineCombinesAndStops() {
+        let article = Article(id: "a1", title: "Swift news", url: "https://example.com/1", content: "")
+        let read = FilterRule(name: "r1", field: "title", contains: "swift", action: "markRead", position: 0)
+        let favorite = FilterRule(name: "r2", field: "title", contains: "swift", action: "favorite", position: 1)
+        let effects = FilterRule.pipeline(rules: [read, favorite], article: article)
+        XCTAssertTrue(effects.markRead)
+        XCTAssertTrue(effects.favorite)
+
+        let stopper = FilterRule(name: "s", field: "title", contains: "swift", action: "markRead", position: 0)
+        stopper.stop = true
+        let afterStop = FilterRule.pipeline(rules: [stopper, favorite], article: article)
+        XCTAssertTrue(afterStop.markRead)
+        XCTAssertFalse(afterStop.favorite)
+
+        // A move/label-only rule as the 0.1.12 form creates it: no legacy
+        // action, so the fallback adds nothing.
+        let mover = FilterRule(name: "m", field: "title", contains: "swift", action: "", position: 0)
+        mover.moveCategory = "Tech"
+        mover.labelCategory = "Swift"
+        mover.skipNotification = true
+        let moved = FilterRule.pipeline(rules: [mover], article: article)
+        XCTAssertEqual(moved.moveCategory, "Tech")
+        XCTAssertEqual(moved.labels, ["Swift"])
+        XCTAssertTrue(moved.skipNotification)
+        XCTAssertFalse(moved.markRead)
+
+        // Rules stored before the multi-action fields fall back to the
+        // legacy single action.
+        let legacyDelete = FilterRule(name: "d", field: "title", contains: "swift", action: "delete", position: 0)
+        XCTAssertTrue(FilterRule.pipeline(rules: [legacyDelete], article: article).delete)
+    }
+
+    func testSavedSearchMatching() {
+        let search = SavedSearch(name: "Swift", term: "swift", position: 0)
+        let byTitle = Article(id: "1", title: "Swift Weekly", url: "", content: "")
+        let byAuthor = Article(id: "2", title: "Other", url: "", content: "", author: "Swift Fan")
+        XCTAssertTrue(search.matches(byTitle, titlesOnly: true))
+        XCTAssertFalse(search.matches(byAuthor, titlesOnly: true))
+        XCTAssertTrue(search.matches(byAuthor, titlesOnly: false))
+    }
+
+    // MARK: Retention and reader presentation (UserDefaults-backed)
+
+    @MainActor
+    func testRetentionCutoff() {
+        let defaults = UserDefaults.standard
+        defaults.set(30, forKey: "retentionDays")
+        let cutoff = LibraryStore.retentionCutoff
+        XCTAssertNotNil(cutoff)
+        if let cutoff {
+            let age = Date().timeIntervalSince(cutoff)
+            XCTAssertTrue(age > 29 * 86_400 && age < 31 * 86_400)
+        }
+        defaults.set(0, forKey: "retentionDays")
+        XCTAssertNil(LibraryStore.retentionCutoff)
+        defaults.removeObject(forKey: "retentionDays")
+    }
+
+    func testReaderPresentationToggles() {
+        let defaults = UserDefaults.standard
+        defer {
+            for key in ["reader.bullets", "reader.quotes", "reader.links", "reader.altText"] {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        let plain = HTMLText.plainText(from: "<ul><li>One</li></ul>")
+        XCTAssertFalse(plain.contains("•"))
+
+        defaults.set(true, forKey: "reader.bullets")
+        XCTAssertTrue(HTMLText.plainText(from: "<ul><li>One</li></ul>").contains("• One"))
+
+        defaults.set(true, forKey: "reader.quotes")
+        XCTAssertTrue(HTMLText.plainText(from: "<blockquote>Wise words</blockquote>").contains("Quote: Wise words"))
+
+        defaults.set(true, forKey: "reader.links")
+        XCTAssertTrue(HTMLText.plainText(from: "<p>See <a href=\"https://example.com/x\">this page</a> now</p>")
+            .contains("this page (https://example.com/x)"))
+
+        defaults.set(true, forKey: "reader.altText")
+        XCTAssertTrue(HTMLText.plainText(from: "<p><img src=\"x.png\" alt=\"A cat\"> After</p>").contains("[Image: A cat]"))
+    }
+
+    // MARK: ZIP construction for the Takeout round trip
+
+    private static func makeZIP(entries: [(name: String, data: Data, deflate: Bool)]) -> Data {
+        func u16(_ value: UInt16, _ data: inout Data) {
+            data.append(UInt8(value & 0xFF)); data.append(UInt8(value >> 8))
+        }
+        func u32(_ value: UInt32, _ data: inout Data) {
+            data.append(UInt8(value & 0xFF)); data.append(UInt8((value >> 8) & 0xFF))
+            data.append(UInt8((value >> 16) & 0xFF)); data.append(UInt8(value >> 24))
+        }
+        var out = Data()
+        var central = Data()
+        for entry in entries {
+            let nameBytes = [UInt8](entry.name.utf8)
+            var payload = entry.data
+            var method: UInt16 = 0
+            if entry.deflate {
+                let capacity = entry.data.count + 128
+                var buffer = [UInt8](repeating: 0, count: capacity)
+                let written = entry.data.withUnsafeBytes { raw in
+                    buffer.withUnsafeMutableBufferPointer { destination in
+                        compression_encode_buffer(destination.baseAddress!, capacity,
+                                                  raw.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                                                  entry.data.count, nil, COMPRESSION_ZLIB)
+                    }
+                }
+                XCTAssertGreaterThan(written, 0)
+                payload = Data(buffer[..<written])
+                method = 8
+            }
+            let offset = out.count
+            var local = Data()
+            u32(0x0403_4B50, &local); u16(20, &local); u16(0, &local); u16(method, &local)
+            u16(0, &local); u16(0, &local); u32(0, &local)
+            u32(UInt32(payload.count), &local); u32(UInt32(entry.data.count), &local)
+            u16(UInt16(nameBytes.count), &local); u16(0, &local)
+            out.append(local); out.append(contentsOf: nameBytes); out.append(payload)
+            var record = Data()
+            u32(0x0201_4B50, &record); u16(20, &record); u16(20, &record); u16(0, &record); u16(method, &record)
+            u16(0, &record); u16(0, &record); u32(0, &record)
+            u32(UInt32(payload.count), &record); u32(UInt32(entry.data.count), &record)
+            u16(UInt16(nameBytes.count), &record); u16(0, &record); u16(0, &record)
+            u16(0, &record); u16(0, &record); u32(0, &record); u32(UInt32(offset), &record)
+            central.append(record); central.append(contentsOf: nameBytes)
+        }
+        let centralOffset = out.count
+        out.append(central)
+        var end = Data()
+        u32(0x0605_4B50, &end); u16(0, &end); u16(0, &end)
+        u16(UInt16(entries.count), &end); u16(UInt16(entries.count), &end)
+        u32(UInt32(central.count), &end); u32(UInt32(centralOffset), &end); u16(0, &end)
+        out.append(end)
+        return out
+    }
+}

@@ -105,13 +105,35 @@ private struct SmartFolderArticlesView: View {
 }
 
 /// Filter Rules (desktop Filter Rules): act on articles as they arrive.
+/// A rule can combine the desktop's actions — mark read, favorite,
+/// delete, skip notification, move to a category, label — and can stop
+/// the pipeline so later rules do not run for that article.
 struct FilterRulesView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \FilterRule.position) private var rules: [FilterRule]
     @State private var name = ""
     @State private var field = "title"
     @State private var contains = ""
-    @State private var action = "markRead"
+    @State private var doMarkRead = true
+    @State private var doFavorite = false
+    @State private var doDelete = false
+    @State private var skipNotification = false
+    @State private var moveCategory = ""
+    @State private var labelCategory = ""
+    @State private var stop = false
+
+    static func actionsSummary(_ rule: FilterRule) -> String {
+        let actions = rule.effectiveActions
+        var parts: [String] = []
+        if actions.markRead { parts.append("mark read") }
+        if actions.favorite { parts.append("favorite") }
+        if actions.delete { parts.append("delete") }
+        if rule.skipNotification { parts.append("skip notification") }
+        if !rule.moveCategory.isEmpty { parts.append("move to \(rule.moveCategory)") }
+        if !rule.labelCategory.isEmpty { parts.append("label \(rule.labelCategory)") }
+        if rule.stop { parts.append("stop") }
+        return parts.isEmpty ? "no actions" : parts.joined(separator: ", ")
+    }
 
     var body: some View {
         List {
@@ -120,7 +142,7 @@ struct FilterRulesView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(rule.name)
-                            Text("\(rule.field) contains \(rule.contains): \(rule.action)").font(.caption).foregroundStyle(.secondary)
+                            Text("\(rule.field) contains \(rule.contains): \(Self.actionsSummary(rule))").font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Toggle("Enabled", isOn: Binding(get: { rule.enabled }, set: { rule.enabled = $0; try? context.save() }))
@@ -142,15 +164,32 @@ struct FilterRulesView: View {
                     Text("Title").tag("title"); Text("Content").tag("content"); Text("Feed").tag("feed"); Text("Author").tag("author")
                 }.accessibilityElement(children: .contain).accessibilityLabel("Field")
                 TextField("Contains", text: $contains).accessibilityLabel("Contains")
-                Picker("Action", selection: $action) {
-                    Text("Mark read").tag("markRead"); Text("Favorite").tag("favorite"); Text("Delete").tag("delete")
-                }.accessibilityElement(children: .contain).accessibilityLabel("Action")
+                Toggle("Mark as Read", isOn: $doMarkRead).accessibilityLabel("Mark as Read")
+                Toggle("Mark as Favorite", isOn: $doFavorite).accessibilityLabel("Mark as Favorite")
+                Toggle("Delete Article", isOn: $doDelete).accessibilityLabel("Delete Article")
+                Toggle("Do Not Notify", isOn: $skipNotification).accessibilityLabel("Do Not Notify")
+                TextField("Move to Category (optional)", text: $moveCategory).accessibilityLabel("Move to Category")
+                TextField("Label (optional)", text: $labelCategory).accessibilityLabel("Label")
+                Toggle("Stop Processing Further Rules", isOn: $stop).accessibilityLabel("Stop Processing Further Rules")
                 Button("Create Filter Rule") {
                     guard !name.isEmpty, !contains.isEmpty else { return }
-                    context.insert(FilterRule(name: name, field: field, contains: contains, action: action, position: rules.count))
+                    // The legacy single action mirrors the toggles; with
+                    // none of the three chosen it stays empty, so a
+                    // move/label-only rule gains no phantom action from
+                    // the pre-0.1.12 fallback in effectiveActions.
+                    let legacy = doDelete ? "delete" : (doFavorite ? "favorite" : (doMarkRead ? "markRead" : ""))
+                    let rule = FilterRule(name: name, field: field, contains: contains, action: legacy, position: rules.count)
+                    rule.doMarkRead = doMarkRead
+                    rule.doFavorite = doFavorite
+                    rule.doDelete = doDelete
+                    rule.skipNotification = skipNotification
+                    rule.moveCategory = moveCategory.trimmingCharacters(in: .whitespaces)
+                    rule.labelCategory = labelCategory.trimmingCharacters(in: .whitespaces)
+                    rule.stop = stop
+                    context.insert(rule)
                     try? context.save()
                     Announcer.announce("Created filter rule \(name).")
-                    name = ""; contains = ""
+                    name = ""; contains = ""; moveCategory = ""; labelCategory = ""
                 }
                 .accessibilityHint("Applies this rule to new articles as feeds refresh.")
             } header: { Text("New Rule").accessibilityAddTraits(.isHeader) }
@@ -183,13 +222,15 @@ struct DiscoverView: View {
                     }
                 } header: { Text("Podcasts").accessibilityAddTraits(.isHeader) }
             }
-            if !feeds.isEmpty {
+            // Directory results group under their source, the way the
+            // desktop's directory search lists each directory's hits.
+            ForEach(groupedFeeds, id: \.source) { group in
                 Section {
-                    ForEach(feeds) { result in
+                    ForEach(group.results) { result in
                         subscribeButton(title: result.title, detail: result.website ?? "RSS feed",
                                         feedURL: result.url)
                     }
-                } header: { Text("Feeds").accessibilityAddTraits(.isHeader) }
+                } header: { Text(group.source).accessibilityAddTraits(.isHeader) }
             }
             if hasSearched, podcasts.isEmpty, feeds.isEmpty, !isSearching {
                 Text("No feeds or podcasts found.")
@@ -200,6 +241,17 @@ struct DiscoverView: View {
         .onSubmit(of: .search) { Task { await runSearch() } }
         .overlay { if isSearching { ProgressView("Searching").accessibilityLabel("Searching") } }
         .navigationTitle("Search Feeds and Podcasts")
+    }
+
+    private var groupedFeeds: [(source: String, results: [PodcastService.FeedResult])] {
+        var order: [String] = []
+        var bySource: [String: [PodcastService.FeedResult]] = [:]
+        for result in feeds {
+            let key = result.source.isEmpty ? "gPodder" : result.source
+            if bySource[key] == nil { order.append(key) }
+            bySource[key, default: []].append(result)
+        }
+        return order.map { (source: $0, results: bySource[$0] ?? []) }
     }
 
     private func subscribeButton(title: String, detail: String, feedURL: String?) -> some View {
@@ -230,17 +282,27 @@ struct DiscoverView: View {
             // URL: page discovery plus feedsearch.dev, and try it AS a feed.
             async let discovered = FullTextService.discoverFeeds(pageURL: page)
             async let searched = PodcastService.searchFeedsearch(siteURL: page.absoluteString)
-            var found = await searched
+            var found = await searched.map { result in
+                var copy = result
+                if copy.source.isEmpty { copy.source = "Site" }
+                return copy
+            }
             for item in await discovered where !found.contains(where: { $0.url == item.url.absoluteString }) {
-                found.append(.init(title: item.title, url: item.url.absoluteString, website: page.absoluteString))
+                found.append(.init(title: item.title, url: item.url.absoluteString, website: page.absoluteString, source: "Site"))
             }
             feeds = found
         } else {
-            // Name: Apple Podcasts and gPodder together.
+            // Name: Apple Podcasts, gPodder, and the desktop's keyless
+            // directories together.
             async let podcastResults = PodcastService.searchPodcasts(term: trimmed)
             async let feedResults = PodcastService.searchFeeds(term: trimmed)
+            async let directoryResults = DirectorySearch.searchAll(term: trimmed)
             podcasts = (try? await podcastResults) ?? []
-            feeds = await feedResults
+            var combined = await feedResults
+            for result in await directoryResults where !combined.contains(where: { $0.url == result.url }) {
+                combined.append(result)
+            }
+            feeds = combined
         }
         isSearching = false
         Announcer.announce("\(podcasts.count + feeds.count) results found.")
@@ -376,28 +438,79 @@ struct ProviderSettingsView: View {
     }
 }
 
-/// Feed properties (desktop Feed Properties): rename and recategorize.
+/// Feed properties (desktop Feed Properties): rename, recategorize,
+/// per-feed notifications and refresh, the feed's own description, and
+/// reset title. Per-feed Refresh lives here, one deliberate step in from
+/// Home. The description and notifications are stored on the feed; the
+/// rest were already here.
 struct FeedEditView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
     @Bindable var feed: Feed
+    @State private var store = LibraryStore()
     @State private var title: String = ""
     @State private var category: String = ""
+    @State private var isRefreshing = false
 
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Feed title", text: $title).accessibilityLabel("Feed title")
-                TextField("Category", text: $category).accessibilityLabel("Category")
-                Text(feed.url).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                    .accessibilityLabel("Feed URL \(feed.url)")
+                Section {
+                    TextField("Feed title", text: $title).accessibilityLabel("Feed title")
+                    Button("Reset Title") {
+                        // Desktop Feed Properties: restore the title the
+                        // feed publishes and let refresh maintain it.
+                        feed.titleIsCustom = false
+                        Task {
+                            if let url = URL(string: feed.url),
+                               let parsed = try? await LibraryStore().fetchFeed(at: url) {
+                                title = parsed.title
+                                feed.title = parsed.title
+                                try? context.save()
+                                Announcer.announce("Title reset to \(parsed.title).")
+                            }
+                        }
+                    }
+                    .accessibilityHint("Restores the title published by the feed.")
+                    TextField("Category", text: $category).accessibilityLabel("Category")
+                    Toggle("Notifications for This Feed", isOn: $feed.notificationsEnabled)
+                        .accessibilityLabel("Notifications for This Feed")
+                        .accessibilityHint("When off, new articles from this feed never raise a notification.")
+                }
+                Section {
+                    Button {
+                        Task {
+                            isRefreshing = true
+                            await store.refresh(feed: feed, in: context)
+                            isRefreshing = false
+                        }
+                    } label: {
+                        Label(isRefreshing ? "Refreshing Feed" : "Refresh Feed", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(isRefreshing)
+                    .accessibilityLabel(isRefreshing ? "Refreshing \(feed.title)" : "Refresh \(feed.title)")
+                    .accessibilityHint("Fetches new articles from this feed.")
+                } header: { Text("Feed Actions").accessibilityAddTraits(.isHeader) }
+                if let description = feed.feedDescription, !description.isEmpty {
+                    Section {
+                        Text(description)
+                            .accessibilityLabel("Feed description: \(description)")
+                    } header: { Text("Description").accessibilityAddTraits(.isHeader) }
+                }
+                Section {
+                    Text(feed.url).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                        .accessibilityLabel("Feed URL \(feed.url)")
+                }
             }
             .navigationTitle("Feed Properties")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        feed.title = title; feed.titleIsCustom = true; feed.category = category
-                        Announcer.announce("Saved \(title).")
+                        if feed.title != title { feed.title = title; feed.titleIsCustom = true }
+                        feed.category = category
+                        try? context.save()
+                        Announcer.announce("Saved \(feed.title).")
                         dismiss()
                     }
                 }

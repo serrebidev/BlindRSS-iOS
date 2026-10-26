@@ -34,6 +34,11 @@ struct ArticleListView: View {
 
     let selection: LibrarySelection
     let feed: Feed?
+    /// Persistent-search and category browsing (desktop Searches and
+    /// Categories in the feed tree). When either is set it replaces the
+    /// library/feed scope.
+    var savedSearch: SavedSearch? = nil
+    var categoryName: String? = nil
     @Binding var selectedArticle: Article?
 
     /// One filtering pass. Body calls this once per render and shares the
@@ -41,9 +46,25 @@ struct ArticleListView: View {
     /// property evaluated five times per render, each a full filter and sort.
     private func filteredArticles() -> [Article] {
         let feedID = feed?.id
+        // Desktop search scope: titles only, or titles and article text.
+        let titlesOnly = UserDefaults.standard.string(forKey: "searchScope") == "titles"
         var result = allArticles.filter { article in
-            if let feedID, article.feed?.id != feedID { return false }
-            if !selection.includes(article) { return false }
+            if let savedSearch {
+                guard savedSearch.matches(article, titlesOnly: titlesOnly) else { return false }
+            } else if let categoryName {
+                // A moved article appears under its new category only;
+                // category membership is the feed's category, a rule or
+                // delete move, or a label, as on the desktop.
+                if article.hiddenFromFeed, article.movedCategory != categoryName { return false }
+                guard article.feed?.category == categoryName
+                        || article.movedCategory == categoryName
+                        || article.labels.contains(categoryName) else { return false }
+            } else {
+                if let feedID, article.feed?.id != feedID { return false }
+                if !selection.includes(article) { return false }
+                // Category-moved articles leave their feed's list.
+                if article.hiddenFromFeed { return false }
+            }
             switch mediaFilter {
             case "with": if !article.hasMedia { return false }
             case "without": if article.hasMedia { return false }
@@ -51,8 +72,9 @@ struct ArticleListView: View {
             }
             // Raw content search only: stripping HTML for every article
             // on every render was the list's biggest CPU cost.
-            return searchText.isEmpty
-                || article.title.localizedCaseInsensitiveContains(searchText)
+            if searchText.isEmpty { return true }
+            if titlesOnly { return article.title.localizedCaseInsensitiveContains(searchText) }
+            return article.title.localizedCaseInsensitiveContains(searchText)
                 || article.content.localizedCaseInsensitiveContains(searchText)
                 || article.author.localizedCaseInsensitiveContains(searchText)
         }
@@ -148,10 +170,19 @@ private struct ArticleRow: View {
     @Environment(\.openURL) private var openURL
     @State private var store = LibraryStore()
     @State private var showingShare = false
+    @State private var confirmingDelete = false
+    @AppStorage("confirmDeleteArticles") private var confirmDelete = true
 
     let article: Article
     let actionOrder: [ArticleAction]
     let onOpen: () -> Void
+
+    /// Desktop asks before deleting articles by default (confirm delete
+    /// setting); Settings can turn the confirmation off.
+    private func requestDelete() {
+        if confirmDelete { confirmingDelete = true }
+        else { store.deleteArticle(article, in: context) }
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -191,7 +222,7 @@ private struct ArticleRow: View {
         // Touch swipe actions (sighted and low-vision path).
         .touchSwipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
-                store.deleteArticle(article, in: context)
+                requestDelete()
             } label: { Label("Delete", systemImage: "trash") }
             Button {
                 store.toggleFavorite(article, in: context)
@@ -225,6 +256,12 @@ private struct ArticleRow: View {
             }
         }
         .shareSheet(isPresented: $showingShare, urlString: article.url)
+        .confirmationDialog("Delete Article", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { store.deleteArticle(article, in: context) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(article.title)
+        }
     }
 
     /// The action's name for this article, or nil when it does not apply
@@ -257,7 +294,7 @@ private struct ArticleRow: View {
             UIPasteboard.general.string = article.url
             Announcer.announce("Link copied.")
         case .share: showingShare = true
-        case .delete: store.deleteArticle(article, in: context)
+        case .delete: requestDelete()
         }
     }
 

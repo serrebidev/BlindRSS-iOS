@@ -33,13 +33,24 @@ final class LibraryStore {
 
     func addFeed(urlString: String, category: String = Category.uncategorized,
                  in context: ModelContext) async throws -> Feed {
-        guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)),
+        var target = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Desktop subscribing resolves social page URLs to their native
+        // feeds (a Mastodon profile, a subreddit, a Lemmy community, a
+        // Groups.io group, a GitHub repo) before fetching.
+        if let converted = SocialResolver.feedURL(forPageURL: target) {
+            target = converted
+        } else if SocialResolver.isYouTubeChannelPage(target),
+                  let feedURL = await SocialResolver.youTubeChannelFeedURL(pageURL: target) {
+            target = feedURL
+        }
+        guard let url = URL(string: target),
               url.scheme == "http" || url.scheme == "https" else {
             throw LibraryError.invalidURL
         }
         let parsed = try await fetchFeed(at: url)
         let feed = Feed(id: url.absoluteString, url: url.absoluteString,
                         title: parsed.title, category: category, language: parsed.language)
+        feed.feedDescription = parsed.feedDescription
         context.insert(feed)
         merge(entries: parsed.entries, into: feed, in: context)
         try context.save()
@@ -89,15 +100,18 @@ final class LibraryStore {
     }
 
     /// Updates feed state and merges entries. Callers save.
+    /// Returns (added, notifiable): notifiable excludes articles a rule
+    /// told to skip the notification for and feeds with notifications off.
     @discardableResult
-    private func apply(parsed: ParsedFeed, to feed: Feed, in context: ModelContext, quiet: Bool = false) -> Int {
+    private func apply(parsed: ParsedFeed, to feed: Feed, in context: ModelContext, quiet: Bool = false) -> (added: Int, notifiable: Int) {
         if !feed.titleIsCustom, feed.title != parsed.title { feed.title = parsed.title }
+        if feed.feedDescription != parsed.feedDescription { feed.feedDescription = parsed.feedDescription }
         if feed.lastError != nil { feed.lastError = nil }
         feed.lastSuccessAt = Date()
         if feed.consecutiveFailures != 0 { feed.consecutiveFailures = 0 }
-        let added = merge(entries: parsed.entries, into: feed, in: context)
-        if added > 0, !quiet { Announcer.announce("\(feed.title): \(added) new articles.") }
-        return added
+        let merged = merge(entries: parsed.entries, into: feed, in: context)
+        if merged.added > 0, !quiet { Announcer.announce("\(feed.title): \(merged.added) new articles.") }
+        return merged
     }
 
     private func recordError(_ error: Error, for feed: Feed, in context: ModelContext) {
@@ -126,8 +140,11 @@ final class LibraryStore {
         Self.lastRefreshAll = Date()
         defer { Self.isRefreshingAll = false }
         var newTotal = 0
+        var notifyTotal = 0
         if feeds.contains(where: \.isHosted) {
-            newTotal += await syncHosted(in: context, quiet: quiet)
+            let hostedAdded = await syncHosted(in: context, quiet: quiet)
+            newTotal += hostedAdded
+            notifyTotal += hostedAdded
         }
         let localFeeds = feeds.filter { !$0.isHosted }
         let feedsByID = Dictionary(localFeeds.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -158,7 +175,9 @@ final class LibraryStore {
                 if let feed = feedsByID[feedID] {
                     switch result {
                     case .success(let parsed):
-                        newTotal += apply(parsed: parsed, to: feed, in: context, quiet: quiet)
+                        let merged = apply(parsed: parsed, to: feed, in: context, quiet: quiet)
+                        newTotal += merged.added
+                        notifyTotal += merged.notifiable
                     case .failure(let error):
                         recordError(error, for: feed, in: context)
                     }
@@ -168,6 +187,7 @@ final class LibraryStore {
                 enqueueNext()
             }
         }
+        purgeExpiredArticles(in: context)
         try? context.save()
         for feed in localFeeds { await autoDownloadPodcasts(feed: feed) }
         if !quiet {
@@ -175,14 +195,34 @@ final class LibraryStore {
         } else if newTotal > 0 {
             Announcer.announce("\(newTotal) new articles.")
         }
-        if newTotal > 0, UserDefaults.standard.bool(forKey: "notificationsEnabled") {
+        if notifyTotal > 0, UserDefaults.standard.bool(forKey: "notificationsEnabled") {
             let content = UNMutableNotificationContent()
             content.title = "BlindRSS"
-            content.body = "\(newTotal) new articles."
+            content.body = "\(notifyTotal) new articles."
             content.sound = .default
             UNUserNotificationCenter.current().add(
                 UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil),
                 withCompletionHandler: nil)
+        }
+    }
+
+    /// Article retention (desktop Settings: Feeds and Articles). Stored
+    /// articles older than the cutoff are removed; favorites are never
+    /// removed, and hosted articles are the server's to keep. The merge
+    /// refuses entries past the same cutoff, so a purge is not undone by
+    /// the next refresh.
+    static var retentionCutoff: Date? {
+        let days = UserDefaults.standard.integer(forKey: "retentionDays")
+        guard days > 0 else { return nil }
+        return Date(timeIntervalSinceNow: -Double(days) * 86_400)
+    }
+
+    private func purgeExpiredArticles(in context: ModelContext) {
+        guard let cutoff = Self.retentionCutoff else { return }
+        let expired = (try? context.fetch(FetchDescriptor<Article>(
+            predicate: #Predicate { $0.date != nil && $0.date! < cutoff && !$0.isFavorite }))) ?? []
+        for article in expired where article.feed?.isHosted != true {
+            context.delete(article)
         }
     }
 
@@ -231,19 +271,37 @@ final class LibraryStore {
         Announcer.announce("Permanently deleted.")
     }
 
-    /// Snapshots the article into DeletedArticle (tombstone), then removes it,
-    /// matching desktop delete/restore in core/db.py.
+    /// Deletes an article following the configured delete behaviour
+    /// (desktop Settings: move to Deleted Articles, delete permanently,
+    /// or move to a category). The default keeps the desktop behaviour:
+    /// snapshot into DeletedArticle (tombstone), then remove, matching
+    /// desktop delete/restore in core/db.py.
     func deleteArticle(_ article: Article, in context: ModelContext) {
         guard let feed = article.feed else { return }
-        context.insert(DeletedArticle(feedID: feed.id, article: article))
-        context.delete(article)
-        try? context.save()
-        Announcer.announce("Deleted \(article.title).")
+        switch UserDefaults.standard.string(forKey: "deleteBehavior") ?? "deleted" {
+        case "permanent":
+            let title = article.title
+            context.delete(article)
+            try? context.save()
+            Announcer.announce("Deleted \(title) permanently.")
+        case "category":
+            let category = UserDefaults.standard.string(forKey: "deleteCategory") ?? ""
+            let target = category.isEmpty ? "Deleted" : category
+            article.movedCategory = target
+            article.hiddenFromFeed = true
+            try? context.save()
+            Announcer.announce("Moved \(article.title) to \(target).")
+        default:
+            context.insert(DeletedArticle(feedID: feed.id, article: article))
+            context.delete(article)
+            try? context.save()
+            Announcer.announce("Deleted \(article.title).")
+        }
     }
 
     // MARK: Fetching
 
-    private func fetchFeed(at url: URL) async throws -> ParsedFeed {
+    func fetchFeed(at url: URL) async throws -> ParsedFeed {
         try await Self.fetchParsed(session: session, url: url)
     }
 
@@ -263,9 +321,11 @@ final class LibraryStore {
     }
 
     /// Inserts new entries, updates changed ones, respects delete tombstones.
-    /// Returns the number of newly added articles.
+    /// Returns how many articles were added and how many of those may
+    /// raise the new-article notification (feed not muted, no rule said
+    /// skip, article not deleted by a rule).
     @discardableResult
-    private func merge(entries: [ParsedEntry], into feed: Feed, in context: ModelContext) -> Int {
+    private func merge(entries: [ParsedEntry], into feed: Feed, in context: ModelContext) -> (added: Int, notifiable: Int) {
         let feedID = feed.id
         let tombstones = (try? context.fetch(FetchDescriptor<DeletedArticle>(
             predicate: #Predicate { $0.feedID == feedID }))) ?? []
@@ -278,7 +338,9 @@ final class LibraryStore {
         for article in feed.articles { existingByID[article.id] = article }
         // Filter rules are fetched once per merge, not once per article.
         let filterRules = (try? context.fetch(FetchDescriptor<FilterRule>(sortBy: [SortDescriptor(\.position)]))) ?? []
+        let cutoff = Self.retentionCutoff
         var added = 0
+        var notifiable = 0
         for entry in entries {
             let articleID = "\(feed.id):\(entry.guid)"
             if tombstonedIDs.contains(articleID) || tombstonedIDs.contains(entry.guid) { continue }
@@ -298,6 +360,9 @@ final class LibraryStore {
                 update(\.mediaURL, entry.mediaURL)
                 update(\.mediaType, entry.mediaType)
             } else {
+                // Retention: a refresh never inserts articles already
+                // past the cutoff (desktop issue #106).
+                if let cutoff, let date = entry.date, date < cutoff { continue }
                 let article = Article(
                     id: articleID, title: entry.title, url: entry.link,
                     content: entry.contentHTML.isEmpty ? (entry.summaryHTML ?? "") : entry.contentHTML,
@@ -315,13 +380,15 @@ final class LibraryStore {
                 context.insert(article)
                 existingByID[articleID] = article
                 added += 1
-                applyFilterRules(rules: filterRules, to: article, in: context)
+                if applyFilterRules(rules: filterRules, to: article, in: context), feed.notificationsEnabled {
+                    notifiable += 1
+                }
                 if let chapterURL = entry.chapterURL {
                     Task { await self.loadChapters(articleID: articleID, chapterURL: chapterURL, in: context) }
                 }
             }
         }
-        return added
+        return (added, notifiable)
     }
 
     /// Desktop auto-download: after refresh, download newest episodes up
@@ -370,7 +437,7 @@ final class LibraryStore {
         do {
             let (data, _) = try await URLSession.shared.data(from: snapshot)
             let parsed = try FeedParser.parse(data: data, sourceURL: URL(string: feed.url) ?? snapshot)
-            let added = merge(entries: parsed.entries, into: feed, in: context)
+            let added = merge(entries: parsed.entries, into: feed, in: context).added
             try context.save()
             Announcer.announce("Archive recovery for \(feed.title) added \(added) episodes.")
         } catch {
@@ -378,15 +445,24 @@ final class LibraryStore {
         }
     }
 
-    /// Desktop Filter Rules: mark read, favorite, or delete on arrival.
-    private func applyFilterRules(rules: [FilterRule], to article: Article, in context: ModelContext) {
-        for rule in rules where rule.matches(article) {
-            switch rule.action {
-            case "favorite": article.isFavorite = true
-            case "delete": deleteArticle(article, in: context); return
-            default: article.isRead = true
-            }
+    /// Desktop Filter Rules pipeline on arrival (core/filters.py):
+    /// every matching rule contributes its actions in order; a stop rule
+    /// ends the pipeline. Returns whether the new-article notification
+    /// may include this article (not when a rule deleted it or said to
+    /// skip its notification).
+    private func applyFilterRules(rules: [FilterRule], to article: Article, in context: ModelContext) -> Bool {
+        let effects = FilterRule.pipeline(rules: rules, article: article)
+        if effects.markRead { article.isRead = true }
+        if effects.favorite { article.isFavorite = true }
+        if let move = effects.moveCategory { article.movedCategory = move }
+        for label in effects.labels where !article.labels.contains(label) {
+            article.labels.append(label)
         }
+        if effects.delete {
+            deleteArticle(article, in: context)
+            return false
+        }
+        return !effects.skipNotification
     }
 }
 
