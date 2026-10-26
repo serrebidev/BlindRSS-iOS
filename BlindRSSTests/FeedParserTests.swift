@@ -447,6 +447,7 @@ final class ParityFeatureTests: XCTestCase {
 
     // MARK: Retention and reader presentation (UserDefaults-backed)
 
+    @MainActor
     func testRetentionCutoff() {
         let defaults = UserDefaults.standard
         defaults.set(30, forKey: "retentionDays")
