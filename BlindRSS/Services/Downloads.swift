@@ -2,8 +2,10 @@
 // This file is part of BlindRSS
 // SPDX-License-Identifier: MIT
 
+import AVFoundation
 import Foundation
 import Observation
+import Speech
 
 /// Media downloads (desktop Downloading Media). Files land in
 /// Documents/Downloads so downloaded episodes play offline and can use
@@ -87,8 +89,22 @@ enum FullTextService {
     /// would and the article is pulled out of it. Takes plain values, not
     /// the Article: this runs off the main actor, where SwiftData models
     /// must not be read.
-    static func fetchFullText(articleID: String, url: String, feedText: String) async throws -> [ReaderBlock] {
+    /// The recovered article, and the page's video when the page is a
+    /// news video (its soundtrack, transcribed, is then the text).
+    struct FullText {
+        var blocks: [ReaderBlock]
+        var videoURL: URL?
+    }
+
+    /// `transcribeVideo` is for the reader and Apple Intelligence asking
+    /// directly: a video page with only a caption of text yields the
+    /// caption plus an on-device transcript of the video (iOS 26 speech
+    /// recognition), and the video itself so it can be played. List
+    /// prefetching leaves it off and never downloads video.
+    static func fetchFullText(articleID: String, url: String, feedText: String,
+                              transcribeVideo: Bool = false) async throws -> FullText {
         var best: [ReaderBlock] = []
+        var page: String?
         if articleID.hasPrefix("miniflux:"), let config = HostedConfig.load(), config.kind == .miniflux,
            let html = try? await minifluxContent(entryID: String(articleID.dropFirst("miniflux:".count)), config: config) {
             best = HTMLText.articleBlocks(fromPage: html)
@@ -100,7 +116,9 @@ enum FullTextService {
         if textLength(best) < 1000 {
             if let pageURL = URL(string: url), pageURL.scheme?.hasPrefix("http") == true {
                 do {
-                    let direct = HTMLText.articleBlocks(fromPage: try await fetchPage(pageURL))
+                    let html = try await fetchPage(pageURL)
+                    page = html
+                    let direct = HTMLText.articleBlocks(fromPage: html)
                     if textLength(direct) > textLength(best) { best = direct }
                 } catch { directError = error }
             } else if best.isEmpty {
@@ -108,9 +126,25 @@ enum FullTextService {
             }
         }
         let length = textLength(best)
+        // A video page (Reuters wire video on The Globe and Mail, for
+        // one) has nothing to extract but its caption, which the feed
+        // already sent; the words are in the video.
+        if transcribeVideo, length < 200 || length <= feedText.count,
+           let page, let videoURL = HTMLText.pageVideoURL(fromPage: page) {
+            var blocks = length > feedText.count || feedText.isEmpty ? best : HTMLText.blocks(fromPlainText: feedText)
+            if let transcript = await VideoTranscriber.transcript(of: videoURL, language: HTMLText.pageLanguage(fromPage: page)),
+               !transcript.isEmpty {
+                blocks.append(ReaderBlock(isHeading: true, text: "Video transcript"))
+                blocks += transcript
+            } else {
+                blocks.append(ReaderBlock(isHeading: false, text:
+                    "This article is a video with no written text. Use Play to listen to it. A transcript needs iOS 26 or later and speech recognition for the video's language."))
+            }
+            return FullText(blocks: blocks, videoURL: videoURL)
+        }
         guard length >= 200 else { throw (directError as? Failure) ?? Failure.noArticle }
         guard length > feedText.count else { throw Failure.notLonger }
-        return best
+        return FullText(blocks: best)
     }
 
     private static func textLength(_ blocks: [ReaderBlock]) -> Int {
@@ -202,6 +236,67 @@ enum FullTextService {
     }
 }
 
+/// On-device speech-to-text of a video's soundtrack (iOS 26
+/// SpeechAnalyzer). The video is downloaded to a temporary file, its
+/// audio exported to M4A, and transcribed in the page's language, or
+/// the device language when that is not supported. Nothing leaves the
+/// device but the video download.
+enum VideoTranscriber {
+    static func transcript(of videoURL: URL, language: String?) async -> [ReaderBlock]? {
+        guard #available(iOS 26, *) else { return nil }
+        let temporary = FileManager.default.temporaryDirectory
+        let video = temporary.appendingPathComponent(UUID().uuidString + ".mp4")
+        let audio = temporary.appendingPathComponent(UUID().uuidString + ".m4a")
+        defer {
+            try? FileManager.default.removeItem(at: video)
+            try? FileManager.default.removeItem(at: audio)
+        }
+        do {
+            let locale: Locale
+            if let language, let match = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: language)) {
+                locale = match
+            } else if let match = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current) {
+                locale = match
+            } else {
+                return nil
+            }
+            var request = URLRequest(url: videoURL)
+            request.timeoutInterval = 60
+            let (downloaded, response) = try await URLSession.shared.download(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            try FileManager.default.moveItem(at: downloaded, to: video)
+            guard let export = AVAssetExportSession(asset: AVURLAsset(url: video), presetName: AVAssetExportPresetAppleM4A) else {
+                return nil
+            }
+            try await export.export(to: audio, as: .m4a)
+
+            let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
+            if let install = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+                try await install.downloadAndInstall()
+            }
+            let analyzer = SpeechAnalyzer(modules: [transcriber])
+            async let phrases = transcriber.results.reduce(into: [String]()) { list, result in
+                if result.isFinal { list.append(String(result.text.characters)) }
+            }
+            // Finishing (or cancelling) the analyzer ends the results
+            // sequence, so the reduce above always returns.
+            do {
+                if let end = try await analyzer.analyzeSequence(from: AVAudioFile(forReading: audio)) {
+                    try await analyzer.finalizeAndFinish(through: end)
+                } else {
+                    await analyzer.cancelAndFinishNow()
+                }
+            } catch {
+                await analyzer.cancelAndFinishNow()
+                throw error
+            }
+            return HTMLText.paragraphs(fromPhrases: try await phrases)
+        } catch {
+            return nil
+        }
+    }
+}
+
 private struct MinifluxFetchedContent: Decodable {
     let content: String
 }
@@ -244,7 +339,7 @@ final class FullTextCache {
         Task {
             defer { inFlight.remove(articleID) }
             do {
-                store(try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText),
+                store(try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText).blocks,
                       for: articleID)
             } catch FullTextService.Failure.notLonger {
                 store(HTMLText.blocks(fromPlainText: feedText), for: articleID)

@@ -157,6 +157,77 @@ extension HTMLText {
         text.split(separator: "\n").map { ReaderBlock(isHeading: false, text: String($0)) }
     }
 
+    // MARK: Video pages
+
+    /// The video a news video page plays (an Arc XP stream list, JSON-LD
+    /// contentUrl, og:video, or a video tag all spell it out as a plain
+    /// .mp4 or .m3u8 address). Such pages carry a caption, not an
+    /// article, so their spoken soundtrack is the full text. The smallest
+    /// MP4 wins: quickest to transcribe and downloadable; HLS is the
+    /// fallback.
+    static func pageVideoURL(fromPage html: String) -> URL? {
+        let unescaped = html.replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u002F", with: "/")
+            .replacingOccurrences(of: "&amp;", with: "&")
+        guard let regex = try? NSRegularExpression(
+            pattern: "https?://[^\"'\\s<>\\\\]+?\\.(?:mp4|m3u8)(?:\\?[^\"'\\s<>\\\\]*)?",
+            options: .caseInsensitive) else { return nil }
+        var seen = Set<String>()
+        var mp4: [(height: Int, url: URL)] = []
+        var hls: [URL] = []
+        for match in regex.matches(in: unescaped, range: NSRange(unescaped.startIndex..., in: unescaped)) {
+            guard let range = Range(match.range, in: unescaped) else { continue }
+            let address = String(unescaped[range])
+            guard seen.insert(address).inserted, let url = URL(string: address) else { continue }
+            if url.pathExtension.lowercased() == "mp4" {
+                mp4.append((videoHeight(in: address) ?? Int.max, url))
+            } else {
+                hls.append(url)
+            }
+        }
+        return mp4.min { $0.height < $1.height }?.url ?? hls.first
+    }
+
+    /// "640x360" or "_360p" in a stream address, as a frame height.
+    private static func videoHeight(in address: String) -> Int? {
+        for pattern in ["\\d{3,4}x(\\d{3,4})", "[_\\-/](\\d{3,4})p\\b"] {
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: address, range: NSRange(address.startIndex..., in: address)),
+               let range = Range(match.range(at: 1), in: address) {
+                return Int(address[range])
+            }
+        }
+        return nil
+    }
+
+    /// The page's declared language (`<html lang="en-CA">`), for speech
+    /// recognition of its video.
+    static func pageLanguage(fromPage html: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: "<html[^>]*\\blang\\s*=\\s*[\"']?([A-Za-z]{2,3}(?:-[A-Za-z0-9]+)*)",
+                                                   options: .caseInsensitive),
+              let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
+              let range = Range(match.range(at: 1), in: html) else { return nil }
+        return String(html[range])
+    }
+
+    /// Speech recognition phrases joined into reader paragraphs of about
+    /// `target` characters, each ending where a sentence does.
+    static func paragraphs(fromPhrases phrases: [String], target: Int = 400) -> [ReaderBlock] {
+        var result: [ReaderBlock] = []
+        var current = ""
+        for phrase in phrases {
+            let piece = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+            if piece.isEmpty { continue }
+            current = current.isEmpty ? piece : current + " " + piece
+            if current.count >= target, let last = current.last, ".!?".contains(last) {
+                result.append(ReaderBlock(isHeading: false, text: current))
+                current = ""
+            }
+        }
+        if !current.isEmpty { result.append(ReaderBlock(isHeading: false, text: current)) }
+        return result
+    }
+
     /// Readability-style extraction of the article in a web page. Scores
     /// containers by real paragraph text, penalizes link-heavy boilerplate,
     /// then emits the winning container plus its qualifying siblings in

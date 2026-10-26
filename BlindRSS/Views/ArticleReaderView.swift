@@ -88,10 +88,13 @@ struct ArticleReaderView: View {
                         Task {
                             isFetchingFullText = true
                             do {
-                                let fetched = try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText)
-                                fullText = fetched
-                                FullTextCache.shared.store(fetched, for: articleID)
-                                Announcer.announce("Full text loaded.")
+                                let fetched = try await FullTextService.fetchFullText(articleID: articleID, url: url, feedText: feedText,
+                                                                                      transcribeVideo: true)
+                                fullText = fetched.blocks
+                                FullTextCache.shared.store(fetched.blocks, for: articleID)
+                                AppleIntelligence.adoptVideo(fetched.videoURL, for: article)
+                                Announcer.announce(fetched.videoURL == nil ? "Full text loaded."
+                                                   : "This article is a video. Its transcript and a Play button are loaded.")
                             } catch {
                                 Announcer.announce(error.localizedDescription)
                             }

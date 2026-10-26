@@ -24,6 +24,8 @@
 	<array>
 		<string>org.serrebidev.BlindRSS.article</string>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>BlindRSS transcribes news videos on this device, so articles that are only a video can be read as text.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_googlecast._tcp</string>

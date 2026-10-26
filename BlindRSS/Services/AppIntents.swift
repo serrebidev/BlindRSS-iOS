@@ -166,12 +166,23 @@ extension AppleIntelligence {
         let feedText = feedText(of: article)
         let id = article.id
         let url = article.url
-        if let fetched = try? await FullTextService.fetchFullText(articleID: id, url: url, feedText: feedText),
-           !fetched.isEmpty {
-            FullTextCache.shared.store(fetched, for: id)
-            return fetched.map(\.text).joined(separator: "\n")
+        if let fetched = try? await FullTextService.fetchFullText(articleID: id, url: url, feedText: feedText,
+                                                                  transcribeVideo: true),
+           !fetched.blocks.isEmpty {
+            FullTextCache.shared.store(fetched.blocks, for: id)
+            adoptVideo(fetched.videoURL, for: article)
+            return fetched.blocks.map(\.text).joined(separator: "\n")
         }
         return feedText
+    }
+
+    /// A video page's video becomes the article's media, so Play,
+    /// Download, and the play queue work on it like a podcast episode.
+    @MainActor static func adoptVideo(_ videoURL: URL?, for article: Article) {
+        guard let videoURL, !article.hasMedia else { return }
+        article.mediaURL = videoURL.absoluteString
+        article.mediaType = videoURL.pathExtension.lowercased() == "m3u8" ? "application/vnd.apple.mpegurl" : "video/mp4"
+        try? article.modelContext?.save()
     }
 
     /// A briefing of the given articles (newest unread, usually).

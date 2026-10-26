@@ -926,6 +926,32 @@ final class FullTextExtractionTests: XCTestCase {
     }
 }
 
+/// Video pages (0.1.18): a news video page has only a caption, so the
+/// video is found for transcription and playback.
+final class VideoPageTests: XCTestCase {
+    func testPicksSmallestMP4FromEscapedArcStreams() {
+        // Arc XP (The Globe and Mail) escapes slashes in its JSON.
+        let html = "<script>Fusion.globalContent={\"streams\":["
+            + "{\"stream_type\":\"ts\",\"url\":\"https:\\/\\/cdn.x\\/v\\/master.m3u8\"},"
+            + "{\"stream_type\":\"mp4\",\"url\":\"https:\\/\\/cdn.x\\/v\\/file_1920x1080-5400.mp4\"},"
+            + "{\"stream_type\":\"mp4\",\"url\":\"https:\\/\\/cdn.x\\/v\\/file_320x180-160.mp4\"}]}</script>"
+        XCTAssertEqual(HTMLText.pageVideoURL(fromPage: html)?.absoluteString, "https://cdn.x/v/file_320x180-160.mp4")
+    }
+
+    func testFallsBackToHLSAndFindsNothingOnTextPages() {
+        XCTAssertEqual(HTMLText.pageVideoURL(fromPage: "<video src=\"https://x.com/a/master.m3u8\"></video>")?.absoluteString,
+                       "https://x.com/a/master.m3u8")
+        XCTAssertNil(HTMLText.pageVideoURL(fromPage: "<article><p>Only words here.</p></article>"))
+    }
+
+    func testPageLanguageAndTranscriptParagraphs() {
+        XCTAssertEqual(HTMLText.pageLanguage(fromPage: "<!doctype html><html class=\"x\" lang=\"en-CA\">"), "en-CA")
+        let paragraphs = HTMLText.paragraphs(fromPhrases: Array(repeating: "Trade talks moved forward today.", count: 30), target: 200)
+        XCTAssertGreaterThan(paragraphs.count, 1)
+        XCTAssertTrue(paragraphs.allSatisfy { $0.text.hasSuffix(".") && !$0.isHeading })
+    }
+}
+
 /// Apple Intelligence (0.1.17): the pure parts around the model calls.
 final class AppleIntelligenceTests: XCTestCase {
     func testCleanOutputDropsMarkdownForVoiceOver() {

@@ -594,7 +594,8 @@ struct OpenArticleByURLView: View {
         blocks = []
         do {
             blocks = try await FullTextService.fetchFullText(articleID: url.absoluteString,
-                                                             url: url.absoluteString, feedText: "")
+                                                             url: url.absoluteString, feedText: "",
+                                                             transcribeVideo: true).blocks
             status = blocks.isEmpty ? "No readable text was found on that page." : ""
             if !blocks.isEmpty { Announcer.announce("Article loaded. \(blocks.count) paragraphs.") }
         } catch {
