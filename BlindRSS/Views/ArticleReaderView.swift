@@ -154,7 +154,7 @@ struct ArticleReaderView: View {
                     }
                 }
 
-                if appleIntelligenceEnabled, AppleIntelligence.isSupported {
+                if appleIntelligenceEnabled, AppleIntelligence.isCapable {
                     appleIntelligenceSection(bodyBlocks: bodyBlocks)
                 }
 
@@ -348,6 +348,14 @@ struct ArticleReaderView: View {
     @ViewBuilder
     private func appleIntelligenceSection(bodyBlocks: [ReaderBlock]) -> some View {
         Text("Apple Intelligence").font(.headline).accessibilityAddTraits(.isHeader)
+        if !AppleIntelligence.status.isAvailable {
+            // The section stays visible with its reason (0.1.19): a
+            // hidden section reads as a broken app, and the system has
+            // been seen to report eligible hardware as ineligible.
+            Text(AppleIntelligence.status.message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
         HStack(spacing: 12) {
             Button {
                 Task { await runAppleIntelligence(.summary, bodyBlocks: bodyBlocks) }

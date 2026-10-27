@@ -247,20 +247,22 @@ struct SettingsView: View {
 
                 Section {
                     Text(AppleIntelligence.status.message)
-                    if AppleIntelligence.isSupported {
+                    if AppleIntelligence.isCapable {
                         Toggle("Apple Intelligence actions", isOn: $appleIntelligenceEnabled)
                             .accessibilityHint("Shows Summarize, Key Points, Ask, Describe Images, Ask Your Library, and Brief Me.")
                     }
                     if let cloudStatus = AppleIntelligence.privateCloudStatus {
-                        Toggle("Use Private Cloud Compute", isOn: $privateCloudEnabled)
-                            .accessibilityHint("Sends long articles and library questions to Apple's larger server model, which keeps them private. Off keeps everything on this device.")
-                        Text(cloudStatus)
-                        if AppleIntelligence.canIncreasePrivateCloudLimit {
-                            Button("Private Cloud Compute Limit Options") {
-                                AppleIntelligence.showPrivateCloudLimitOptions()
+                        if AppleIntelligence.hasPrivateCloudEntitlement {
+                            Toggle("Use Private Cloud Compute", isOn: $privateCloudEnabled)
+                                .accessibilityHint("Sends long articles and library questions to Apple's larger server model, which keeps them private. Off keeps everything on this device.")
+                            if AppleIntelligence.canIncreasePrivateCloudLimit {
+                                Button("Private Cloud Compute Limit Options") {
+                                    AppleIntelligence.showPrivateCloudLimitOptions()
+                                }
+                                .accessibilityHint("Shows Apple's options for a higher daily limit.")
                             }
-                            .accessibilityHint("Shows Apple's options for a higher daily limit.")
                         }
+                        Text(cloudStatus)
                     }
                     Text("With Siri or Shortcuts, say \"Brief me with BlindRSS\", \"Summarize an article in BlindRSS\", \"Ask BlindRSS about an article\", \"Ask BlindRSS\" for your whole library, \"Describe the images in BlindRSS\", \"Search BlindRSS for\" a topic, \"How many unread articles in BlindRSS\", or \"Refresh BlindRSS\". Siri can also act on the article you are reading or the one you are on in a list, and Spotlight finds recent articles by their text.")
                         .font(.caption)

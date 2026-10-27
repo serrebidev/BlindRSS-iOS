@@ -88,7 +88,7 @@ struct ArticleListView: View {
     var body: some View {
         let articles = filteredArticles()
         // Checked once per render, not per row.
-        let offersAppleIntelligence = appleIntelligenceEnabled && AppleIntelligence.isSupported
+        let offersAppleIntelligence = appleIntelligenceEnabled && AppleIntelligence.isCapable
         // Parsed once per render and shared by every row.
         let actionOrder = ArticleAction.order(from: storedActionOrder)
             .filter { $0 != .summarize || offersAppleIntelligence }

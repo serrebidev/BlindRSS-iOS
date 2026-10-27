@@ -200,8 +200,39 @@ enum AppleIntelligence {
 
     /// Image descriptions and library questions need iOS 27.
     static var offersIOS27Features: Bool {
-        if #available(iOS 27, *) { return isSupported }
+        if #available(iOS 27, *) { return isCapable }
         return false
+    }
+
+    /// Whether this system could run the features on an eligible
+    /// device (iOS 26+, framework compiled in). Unlike `isSupported`,
+    /// a `deviceNotEligible` report does not hide the interface: the
+    /// system has been seen to report eligible hardware as ineligible,
+    /// and a vanished section reads as a broken app. Sections stay
+    /// visible and explain themselves through `status` instead.
+    static var isCapable: Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *) { return true }
+        #endif
+        return false
+    }
+
+    /// Whether this build carries Apple's Private Cloud Compute
+    /// entitlement, read from the embedded provisioning profile.
+    /// Apple grants the entitlement only to approved App Store apps;
+    /// sideloaded builds (AltStore) sign with a development profile
+    /// that never contains it. App Store builds carry no embedded
+    /// profile, and there the model's availability decides instead.
+    static let hasPrivateCloudEntitlement: Bool = {
+        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+              let data = try? Data(contentsOf: url) else { return true }
+        return profileGrantsPrivateCloud(String(decoding: data, as: UTF8.self))
+    }()
+
+    /// Pure check, unit-tested: the entitlement key is present in a
+    /// provisioning profile's text when Apple granted it.
+    static func profileGrantsPrivateCloud(_ profileText: String) -> Bool {
+        profileText.contains("com.apple.developer.private-cloud-compute")
     }
 
     // MARK: Private Cloud Compute (iOS 27)
@@ -214,6 +245,12 @@ enum AppleIntelligence {
     static var usesPrivateCloud: Bool {
         #if canImport(FoundationModels)
         if #available(iOS 27, *) {
+            // Without the entitlement the model object is a trap:
+            // construction and requests error, hang, or rate-limit in
+            // ways indistinguishable from a dead feature, and every
+            // request would pay that before falling back. Never
+            // attempt it on a build Apple has not approved.
+            guard hasPrivateCloudEntitlement else { return false }
             let enabled = UserDefaults.standard.object(forKey: "appleIntelligence.privateCloud") as? Bool ?? true
             return enabled && PrivateCloudComputeLanguageModel().isAvailable
         }
@@ -226,6 +263,9 @@ enum AppleIntelligence {
     static var privateCloudStatus: String? {
         #if canImport(FoundationModels)
         if #available(iOS 27, *) {
+            guard hasPrivateCloudEntitlement else {
+                return "Private Cloud Compute is only in App Store builds approved by Apple. This build uses the on-device model."
+            }
             let model = PrivateCloudComputeLanguageModel()
             switch model.availability {
             case .available:
@@ -244,7 +284,7 @@ enum AppleIntelligence {
     /// Whether Apple offers more Private Cloud Compute quota (iCloud+).
     static var canIncreasePrivateCloudLimit: Bool {
         #if canImport(FoundationModels)
-        if #available(iOS 27, *) { return PrivateCloudComputeLanguageModel().quotaUsage.limitIncreaseSuggestion != nil }
+        if #available(iOS 27, *), hasPrivateCloudEntitlement { return PrivateCloudComputeLanguageModel().quotaUsage.limitIncreaseSuggestion != nil }
         #endif
         return false
     }

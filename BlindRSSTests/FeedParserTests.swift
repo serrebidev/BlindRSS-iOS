@@ -1035,3 +1035,31 @@ final class AppleIntelligenceTests: XCTestCase {
         }
     }
 }
+
+
+/// Private Cloud Compute entitlement probe (0.1.19): the PCC model is
+/// never attempted on a build whose provisioning profile lacks the
+/// entitlement — without it, requests error, hang, or rate-limit in
+/// ways indistinguishable from a dead feature.
+final class PrivateCloudEntitlementTests: XCTestCase {
+    func testProfileWithEntitlementGrants() {
+        let profile = """
+        <key>Entitlements</key><dict>
+        <key>application-identifier</key><string>TEAM.org.serrebidev.BlindRSS</string>
+        <key>com.apple.developer.private-cloud-compute</key><true/>
+        </dict>
+        """
+        XCTAssertTrue(AppleIntelligence.profileGrantsPrivateCloud(profile))
+    }
+
+    func testDevelopmentProfileDoesNotGrant() {
+        let profile = """
+        <key>Entitlements</key><dict>
+        <key>application-identifier</key><string>TEAM.org.serrebidev.BlindRSS</string>
+        <key>get-task-allow</key><true/>
+        </dict>
+        """
+        XCTAssertFalse(AppleIntelligence.profileGrantsPrivateCloud(profile))
+        XCTAssertFalse(AppleIntelligence.profileGrantsPrivateCloud(""))
+    }
+}

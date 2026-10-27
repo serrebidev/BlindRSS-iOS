@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.19
+
+Apple Intelligence fixes, from an audit of why the features could all fail at once on iOS 27.
+
+- Private Cloud Compute is no longer attempted on builds that cannot use it. Apple grants that server model only to approved App Store apps through an entitlement; sideloaded builds (AltStore) don't carry it, but the app tried the cloud first on every request anyway — and without the entitlement those attempts error, hang, or rate-limit in ways that look exactly like a dead feature, delaying or sinking the on-device answer behind them. The app now checks its own provisioning profile once: no entitlement, no cloud attempt, everything runs on the device model immediately. Settings says this plainly where the cloud switch used to be.
+- The Apple Intelligence sections no longer vanish when the system reports the device as not eligible. That report is sometimes wrong (it has been seen on eligible iPhone 17 hardware), and a missing section reads as a broken app. The reader's Apple Intelligence section, the list's Summarize action, Brief Me, and the Settings switch now stay visible on any system that can run the features, and the reader shows the exact status — ready, Apple Intelligence off, model still downloading, or reported not eligible — at the top of the section.
+
+
 ## 0.1.18
 
 The iOS 27 Apple Intelligence features, and full text for news video pages. The app is now built with Xcode 27; it still runs on iOS 17, and each feature appears only where the system supports it.
