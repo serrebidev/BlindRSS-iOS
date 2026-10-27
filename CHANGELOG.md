@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.20
+
+Private Cloud Compute is attempted again — bounded, so it can never take a feature down with it.
+
+- 0.1.19 stopped attempting the cloud entirely on builds without Apple's entitlement. That was the wrong shape: these apps are headed for the App Store, where an approved build should use the bigger model. The cloud is now tried first whenever it reports available, exactly as designed in 0.1.18 — with the two guards whose absence made 0.1.18 fail. Each attempt is capped at 20 seconds: without the entitlement the attempt can hang for minutes, and Siri kills an intent at about 30 seconds, so the old unbounded try-first never reached its own fallback. And a failed attempt backs off before the cloud is tried again — a week on a build without the entitlement, where the attempt can only fail until the build changes; a minute on an entitled build, where a failure is just offline or quota. Either way, the on-device model answers every request the cloud doesn't.
+- Settings describes this build's cloud state in those terms, and the Use Private Cloud Compute switch is back for every build — turning it off keeps everything on the device, as before.
+
+
 ## 0.1.19
 
 Apple Intelligence fixes, from an audit of why the features could all fail at once on iOS 27.

@@ -223,6 +223,10 @@ enum AppleIntelligence {
     /// sideloaded builds (AltStore) sign with a development profile
     /// that never contains it. App Store builds carry no embedded
     /// profile, and there the model's availability decides instead.
+    /// The entitlement never decides whether the cloud is attempted —
+    /// Brandon wants it attempted, with the on-device model as the
+    /// fallback (0.1.20) — only how long a failure backs off before
+    /// the next attempt, and what Settings says about it.
     static let hasPrivateCloudEntitlement: Bool = {
         guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
               let data = try? Data(contentsOf: url) else { return true }
@@ -245,17 +249,35 @@ enum AppleIntelligence {
     static var usesPrivateCloud: Bool {
         #if canImport(FoundationModels)
         if #available(iOS 27, *) {
-            // Without the entitlement the model object is a trap:
-            // construction and requests error, hang, or rate-limit in
-            // ways indistinguishable from a dead feature, and every
-            // request would pay that before falling back. Never
-            // attempt it on a build Apple has not approved.
-            guard hasPrivateCloudEntitlement else { return false }
             let enabled = UserDefaults.standard.object(forKey: "appleIntelligence.privateCloud") as? Bool ?? true
-            return enabled && PrivateCloudComputeLanguageModel().isAvailable
+            return enabled && Date() >= cloudRetryAfter && PrivateCloudComputeLanguageModel().isAvailable
         }
         #endif
         return false
+    }
+
+    // MARK: Cloud attempt backoff
+
+    /// After a failed cloud attempt, when the next one may be tried.
+    /// Persisted, so a build that cannot use the cloud does not pay
+    /// the attempt on every request.
+    private static let cloudRetryKey = "appleIntelligence.privateCloudRetryAfter"
+
+    static var cloudRetryAfter: Date {
+        Date(timeIntervalSince1970: UserDefaults.standard.double(forKey: cloudRetryKey))
+    }
+
+    /// How long a cloud failure backs off, pure and unit-tested: a
+    /// minute on an entitled build, where a failure is transient
+    /// (offline, quota), and a week without the entitlement, where
+    /// the attempt can only fail until the build changes.
+    static func cloudBackoff(entitled: Bool) -> TimeInterval {
+        entitled ? 60 : 7 * 24 * 3600
+    }
+
+    private static func noteCloudFailure() {
+        let until = Date().addingTimeInterval(cloudBackoff(entitled: hasPrivateCloudEntitlement))
+        UserDefaults.standard.set(until.timeIntervalSince1970, forKey: cloudRetryKey)
     }
 
     /// A sentence for Settings about Private Cloud Compute, or nil
@@ -264,7 +286,7 @@ enum AppleIntelligence {
         #if canImport(FoundationModels)
         if #available(iOS 27, *) {
             guard hasPrivateCloudEntitlement else {
-                return "Private Cloud Compute is only in App Store builds approved by Apple. This build uses the on-device model."
+                return "This build does not carry Apple's Private Cloud Compute entitlement (approved App Store builds do). The cloud is tried first when it reports available, but without the entitlement that can only fail, so attempts back off for a week after each failure and everything runs on the on-device model."
             }
             let model = PrivateCloudComputeLanguageModel()
             switch model.availability {
@@ -400,12 +422,27 @@ enum AppleIntelligence {
     }
 
     #if canImport(FoundationModels)
+    /// Seconds a cloud attempt may take before the on-device model
+    /// answers instead. App Intents are killed by the system at about
+    /// 30 seconds, and without the entitlement the cloud attempt can
+    /// hang for minutes — an unbounded try-first made every feature
+    /// look dead even though the fallback existed (0.1.18).
+    static let cloudTimeout: TimeInterval = 20
+
     /// Tries Private Cloud Compute first when it can run, then the
-    /// on-device model: a network failure, an exhausted quota, or a
-    /// missing entitlement never cost the user an answer.
+    /// on-device model: a network failure, an exhausted quota, a
+    /// timeout, or a missing entitlement never cost the user an
+    /// answer — the attempt is bounded, and a failure backs off
+    /// (`cloudBackoff`) before the cloud is tried again.
     @available(iOS 26, *)
-    private static func withCloudFallback(_ body: (Bool) async throws -> String) async throws -> String {
-        if usesPrivateCloud, let answer = try? await body(true) { return answer }
+    private static func withCloudFallback(_ body: @escaping (Bool) async throws -> String) async throws -> String {
+        if usesPrivateCloud {
+            do {
+                return try await withTimeout(cloudTimeout) { try await body(true) }
+            } catch {
+                noteCloudFailure()
+            }
+        }
         try Task.checkCancellation()
         do {
             return try await body(false)
@@ -415,6 +452,44 @@ enum AppleIntelligence {
             throw CancellationError()
         } catch {
             throw AppleIntelligenceError(message: message(for: error))
+        }
+    }
+
+    private struct CloudTimeoutError: Error {}
+
+    /// Runs `body`, giving up after `seconds`. The abandoned task
+    /// finishes into the void — a checked continuation resumed exactly
+    /// once, by whichever of the worker and the timer claims it
+    /// first — because a task group would wait for the hung task at
+    /// scope exit and defeat the timeout.
+    @available(iOS 26, *)
+    private static func withTimeout(_ seconds: TimeInterval,
+                                    _ body: @escaping () async throws -> String) async throws -> String {
+        final class Gate: @unchecked Sendable {
+            let lock = NSLock()
+            var claimed = false
+            func claim() -> Bool {
+                lock.lock()
+                defer { lock.unlock() }
+                if claimed { return false }
+                claimed = true
+                return true
+            }
+        }
+        let gate = Gate()
+        return try await withCheckedThrowingContinuation { continuation in
+            Task {
+                do {
+                    let value = try await body()
+                    if gate.claim() { continuation.resume(returning: value) }
+                } catch {
+                    if gate.claim() { continuation.resume(throwing: error) }
+                }
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                if gate.claim() { continuation.resume(throwing: CloudTimeoutError()) }
+            }
         }
     }
 

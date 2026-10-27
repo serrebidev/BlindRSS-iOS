@@ -1063,3 +1063,19 @@ final class PrivateCloudEntitlementTests: XCTestCase {
         XCTAssertFalse(AppleIntelligence.profileGrantsPrivateCloud(""))
     }
 }
+
+
+/// Cloud attempt backoff (0.1.20): Private Cloud Compute is always
+/// attempted first when it reports available — Brandon wants the
+/// attempt, with the on-device model as the fallback — but a failure
+/// backs off so a build that cannot use the cloud does not pay the
+/// attempt on every request.
+final class CloudBackoffTests: XCTestCase {
+    func testEntitledBuildRetriesSoon() {
+        XCTAssertEqual(AppleIntelligence.cloudBackoff(entitled: true), 60)
+    }
+
+    func testUnentitledBuildBacksOffAWeek() {
+        XCTAssertEqual(AppleIntelligence.cloudBackoff(entitled: false), 7 * 24 * 3600)
+    }
+}
