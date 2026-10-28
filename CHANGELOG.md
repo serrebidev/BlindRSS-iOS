@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.21
+
+Faster opening, especially with a large library.
+
+- The feed list no longer walks every article of every feed to work out its unread and favorite counts, and no longer walks them all again to find the browsable categories. Both are now counted and fetched in the store with only the columns they need. The old way pulled the full text of every article in the library into memory on the main thread before the first screen settled — the bigger the library, the slower the app was to open.
+- The article list's query is scoped to the view or feed it shows and fetches only the columns its rows and filters use. Article text now loads per row, for the rows on screen, instead of the whole library up front.
+- The startup refresh waits a few seconds after launch before it begins, so its work no longer competes with the first screens. It still runs at every launch when Refresh on Startup is on, and the interval schedule is unchanged.
+
+
 ## 0.1.20
 
 Private Cloud Compute is attempted again — bounded, so it can never take a feature down with it.

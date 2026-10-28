@@ -38,16 +38,24 @@ struct FeedListView: View {
 
     private func libraryCounts() -> Counts {
         var counts = Counts()
-        for feed in feeds {
-            var unread = 0
-            for article in feed.articles {
-                if !article.isRead { unread += 1 }
-                if article.isFavorite { counts.favorites += 1 }
+        // Counted in the store, never by walking the object graph: the old
+        // loop faulted every article of every feed — full text included —
+        // into memory on the main thread at first render, which is what
+        // made the app slow to open on a large library.
+        counts.favorites = (try? context.fetchCount(
+            FetchDescriptor<Article>(predicate: #Predicate { $0.isFavorite }))) ?? 0
+        // One light fetch of the unread set (relationship only, no text
+        // columns) serves both the total and the per-feed badges.
+        var unreadDescriptor = FetchDescriptor<Article>(predicate: #Predicate { !$0.isRead })
+        unreadDescriptor.propertiesToFetch = [\.feed]
+        let unreadArticles = (try? context.fetch(unreadDescriptor)) ?? []
+        counts.unread = unreadArticles.count
+        for article in unreadArticles {
+            if let feedID = article.feed?.id {
+                counts.unreadByFeedID[feedID, default: 0] += 1
             }
-            counts.unreadByFeedID[feed.id] = unread
-            counts.unread += unread
-            if feed.lastError != nil { counts.errors += 1 }
         }
+        for feed in feeds where feed.lastError != nil { counts.errors += 1 }
         return counts
     }
 
@@ -198,12 +206,15 @@ struct FeedListView: View {
     /// plus rule/delete moves and labels.
     private func articleCategories() -> [String] {
         var names = Set<String>()
-        for feed in feeds {
-            names.insert(feed.category)
-            for article in feed.articles {
-                if let moved = article.movedCategory { names.insert(moved) }
-                names.formUnion(article.labels)
-            }
+        for feed in feeds { names.insert(feed.category) }
+        // Moves and labels live on articles, but only those two columns
+        // are fetched — the old walk faulted every article's full text
+        // into memory on every render, a second full-library pass at open.
+        var descriptor = FetchDescriptor<Article>()
+        descriptor.propertiesToFetch = [\.movedCategory, \.labels]
+        for article in (try? context.fetch(descriptor)) ?? [] {
+            if let moved = article.movedCategory { names.insert(moved) }
+            names.formUnion(article.labels)
         }
         return names.sorted()
     }

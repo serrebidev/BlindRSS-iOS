@@ -205,6 +205,12 @@ struct ContentView: View {
         if !didStartupRefresh {
             didStartupRefresh = true
             if refreshOnStartup {
+                // Let the first screens settle before the refresh's
+                // parsing and saves compete with them; a refresh that
+                // starts the same moment the window opens makes the app
+                // feel slow to open even when rendering is fast.
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled else { return }
                 await refreshAllFeeds()
             } else if LibraryStore.lastRefreshAll == nil {
                 LibraryStore.lastRefreshAll = Date()

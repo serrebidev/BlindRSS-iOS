@@ -23,7 +23,7 @@ import UIKit
 struct ArticleListView: View {
     @Environment(\.modelContext) private var context
     @Environment(AudioPlayer.self) private var player
-    @Query(sort: \Article.date, order: .reverse) private var allArticles: [Article]
+    @Query private var allArticles: [Article]
     @State private var store = LibraryStore()
     @State private var searchText = ""
     @State private var articleToShare: Article?
@@ -42,6 +42,57 @@ struct ArticleListView: View {
     var savedSearch: SavedSearch? = nil
     var categoryName: String? = nil
     @Binding var selectedArticle: Article?
+
+    init(selection: LibrarySelection, feed: Feed?, savedSearch: SavedSearch? = nil,
+         categoryName: String? = nil, selectedArticle: Binding<Article?>) {
+        self.selection = selection
+        self.feed = feed
+        self.savedSearch = savedSearch
+        self.categoryName = categoryName
+        _selectedArticle = selectedArticle
+        // The query is scoped to what this list can show, and fetches only
+        // the columns the rows and the in-memory filter touch. The old
+        // query pulled every article in the library — full text included —
+        // into memory at first render, a main-thread stall at open that
+        // grew with the library. Article text faults in per row, only for
+        // rows on screen, when one is opened, searched, or matched by a
+        // saved search.
+        var descriptor = FetchDescriptor<Article>(
+            sortBy: [SortDescriptor(\Article.date, order: .reverse)])
+        descriptor.propertiesToFetch = [\.title, \.date, \.author, \.isRead, \.isFavorite,
+                                        \.mediaURL, \.mediaType, \.labels, \.movedCategory,
+                                        \.hiddenFromFeed, \.feed]
+        if savedSearch == nil, categoryName == nil {
+            if let feedID = feed?.id {
+                switch selection {
+                case .all:
+                    descriptor.predicate = #Predicate { $0.feed?.id == feedID && !$0.hiddenFromFeed }
+                case .unread:
+                    descriptor.predicate = #Predicate { $0.feed?.id == feedID && !$0.isRead && !$0.hiddenFromFeed }
+                case .read:
+                    descriptor.predicate = #Predicate { $0.feed?.id == feedID && $0.isRead && !$0.hiddenFromFeed }
+                case .favorites:
+                    descriptor.predicate = #Predicate { $0.feed?.id == feedID && $0.isFavorite && !$0.hiddenFromFeed }
+                case .errors:
+                    descriptor.predicate = #Predicate { _ in false }
+                }
+            } else {
+                switch selection {
+                case .all:
+                    descriptor.predicate = #Predicate { !$0.hiddenFromFeed }
+                case .unread:
+                    descriptor.predicate = #Predicate { !$0.isRead && !$0.hiddenFromFeed }
+                case .read:
+                    descriptor.predicate = #Predicate { $0.isRead && !$0.hiddenFromFeed }
+                case .favorites:
+                    descriptor.predicate = #Predicate { $0.isFavorite && !$0.hiddenFromFeed }
+                case .errors:
+                    descriptor.predicate = #Predicate { _ in false }
+                }
+            }
+        }
+        _allArticles = Query(descriptor)
+    }
 
     /// One filtering pass. Body calls this once per render and shares the
     /// result with the list, rotors, and toolbar; it used to be a computed
