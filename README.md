@@ -10,11 +10,11 @@ BlindRSS is in the serrebiALT source.
 
 1. In AltStore, open Sources, tap Add, and paste:
 
-   https://raw.githubusercontent.com/serrebidev/serrebiALT/main/apps.json
+   https://git.serrebiradio.com/serrebi/serrebiALT/raw/branch/main/apps.json
 
 2. Find BlindRSS in the source and install it. AltStore re-signs the app with your account, so no developer certificate is needed.
 
-You can also download the `.ipa` directly from [Releases](https://github.com/serrebidev/BlindRSS-iOS/releases) and install it with AltStore, SideStore, or another sideloader.
+You can also download the `.ipa` directly from [Releases](https://git.serrebiradio.com/serrebi/BlindRSS-iOS/releases) and install it with AltStore, SideStore, or another sideloader.
 
 ## What works
 
