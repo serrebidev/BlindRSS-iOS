@@ -125,7 +125,7 @@ jobs:
           zip -qry "BlindRSS-$VERSION-iOS.ipa" Payload
           ls -la *.ipa
 
-      - uses: actions/upload-artifact@v6
+      - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         if: always()
         with:
           name: ipa
