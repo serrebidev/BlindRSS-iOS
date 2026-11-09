@@ -10,7 +10,7 @@ BlindRSS is in the serrebiALT source.
 
 1. In AltStore, open Sources, tap Add, and paste:
 
-   https://git.serrebiradio.com/serrebi/serrebiALT/raw/branch/main/apps.json
+   https://altstore.serrebiradio.com/apps.json
 
 2. Find BlindRSS in the source and install it. AltStore re-signs the app with your account, so no developer certificate is needed.
 
