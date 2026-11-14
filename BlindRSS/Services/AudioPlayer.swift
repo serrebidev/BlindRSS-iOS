@@ -294,6 +294,22 @@ final class AudioPlayer {
 
     func seek(by delta: TimeInterval) { seek(to: currentTime + delta) }
 
+    /// Parse a "jump to time" entry into seconds: plain seconds ("90"),
+    /// mm:ss ("1:23") or h:mm:ss ("1:23:45"). Nil on invalid input.
+    static func parseJumpTime(_ text: String) -> TimeInterval? {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { return nil }
+        let parts = t.split(separator: ":", omittingEmptySubsequences: false)
+        if parts.isEmpty || parts.count > 3 { return nil }
+        var total: TimeInterval = 0
+        for part in parts {
+            guard let v = TimeInterval(part) else { return nil }
+            if v < 0 { return nil }
+            total = total * 60 + v
+        }
+        return total
+    }
+
     func setRate(_ newRate: Float) {
         rate = min(4.0, max(0.5, (newRate * 100).rounded() / 100))
         Announcer.announce("Speed \(formattedRate).")

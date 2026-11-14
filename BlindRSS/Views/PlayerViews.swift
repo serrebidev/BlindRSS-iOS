@@ -19,6 +19,9 @@ struct MiniPlayerView: View {
     @AppStorage("seekInterval") private var seekInterval = 30.0
     @State private var showingQueue = false
     @State private var showingEqualizer = false
+    @State private var showingJump = false
+    @State private var jumpText = ""
+    @State private var jumpError = ""
     /// Compact by default: the full player took about a fifth of an
     /// iPhone screen on every view, and more beside the search keyboard.
     @AppStorage("miniPlayerExpanded") private var expanded = false
@@ -114,6 +117,16 @@ struct MiniPlayerView: View {
                     }
                     controlButton("Forward \(seconds) seconds", systemImage: symbol("goforward", seconds)) {
                         player.seek(by: seekInterval)
+                    }
+                    controlButton("Back 60 seconds", systemImage: symbol("gobackward", 60)) {
+                        player.seek(by: -60)
+                    }
+                    controlButton("Forward 60 seconds", systemImage: symbol("goforward", 60)) {
+                        player.seek(by: 60)
+                    }
+                    controlButton("Jump to Time", systemImage: "clock.arrow.circlepath") {
+                        jumpError = ""
+                        showingJump = true
                     }
                     controlButton("Stop", systemImage: "stop.fill") {
                         player.stop()
@@ -233,6 +246,43 @@ struct MiniPlayerView: View {
         }
         .sheet(isPresented: $showingEqualizer) {
             EqualizerView()
+        }
+        .sheet(isPresented: $showingJump) {
+            NavigationStack {
+                Form {
+                    Section {
+                        TextField("Time", text: $jumpText)
+                            .accessibilityLabel("Jump to time")
+                            .accessibilityHint("Enter time as hours:minutes:seconds, minutes:seconds or seconds.")
+                            .textContentType(.none)
+                            .keyboardType(.numbersAndPunctuation)
+                        if !jumpError.isEmpty {
+                            Text(jumpError).foregroundStyle(.red)
+                        }
+                    } header: {
+                        Text("Jump to Time")
+                    }
+                    Section {
+                        Button("Go") {
+                            if let target = AudioPlayer.parseJumpTime(jumpText) {
+                                player.seek(to: target)
+                                Announcer.announce("Jumped to \(AudioPlayer.formatTime(target)).")
+                                showingJump = false
+                            } else {
+                                jumpError = "Invalid time. Use e.g. 1:23:45, 1:23 or 90."
+                            }
+                        }
+                        .accessibilityLabel("Go")
+                    }
+                }
+                .navigationTitle("Jump to Time")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showingJump = false }
+                            .accessibilityLabel("Cancel jump to time")
+                    }
+                }
+            }
         }
     }
 

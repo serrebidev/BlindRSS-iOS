@@ -55,6 +55,7 @@ The player is the mini player bar at the bottom of the screen. It starts compact
 
 - Progress: the episode title. Swipe up or down to move by the seek interval from Settings (30 seconds by default). The value is the position and the current chapter, for example "3:05 of 42:10, chapter Intro". Touch users can drag the slider.
 - Back and Forward by the seek interval, Play or Pause, and Stop.
+- Back 60 seconds, Forward 60 seconds, and Jump to Time: Jump opens a field for a time as hours:minutes:seconds, minutes:seconds, or seconds (for example 1:23:45).
 - Playback speed: swipe up or down to change speed by a tenth, from half speed to four times speed. Double tap for Faster, Slower, Normal Speed, and presets.
 - Chapters: swipe up or down for the next or previous chapter. Double tap for Previous Chapter, Next Chapter, Open Chapter Link, and the chapter list.
 - AirPlay and output devices.
@@ -69,7 +70,7 @@ State changes are announced: refresh results with new article counts, marked as 
 
 On iPhone, Add Feed and More are the first two buttons on the feed list, above the Feeds heading; More holds Refresh All and Settings. On iPad they are in the sidebar toolbar. It asks for a feed URL and a category. Errors are announced, not only shown in red text. Subscribe confirms with the feed name and article count.
 
-Settings has OPML import and export, refresh on startup, Refresh automatically (Never, or every 5, 10, or 30 minutes, every hour, every 2 hours, or every day; every 5 minutes by default, as on the desktop), resume playback, default playback speed, and the seek interval. Automatic refreshes are quiet: they only speak when there are new articles, for example "12 new articles." When the app is closed, iOS Background App Refresh runs them at a time iOS chooses, no sooner than the interval, and new articles raise a notification when Notifications for new articles is on. Import announces how many feeds were found and when the import finishes.
+Settings has OPML import and export, refresh on startup, Refresh automatically (Never, or every 5, 10, or 30 minutes, every hour, every 2 hours, or every day; every 5 minutes by default, as on the desktop), resume playback, default playback speed, the seek interval, and a custom seek stepper (5 to 600 seconds). Automatic refreshes are quiet: they only speak when there are new articles, for example "12 new articles." When the app is closed, iOS Background App Refresh runs them at a time iOS chooses, no sooner than the interval, and new articles raise a notification when Notifications for new articles is on. Import announces how many feeds were found and when the import finishes.
 
 ## Hardware keyboards
 

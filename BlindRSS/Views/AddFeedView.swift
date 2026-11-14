@@ -174,6 +174,10 @@ struct SettingsView: View {
                     }
                     .accessibilityElement(children: .contain)
                     .accessibilityLabel("Seek interval")
+                    Stepper("Custom seek: \(Int(seekInterval)) seconds", value: $seekInterval, in: 5...600, step: 5)
+                        .accessibilityLabel("Custom seek interval")
+                        .accessibilityValue("\(Int(seekInterval)) seconds")
+                        .accessibilityHint("Sets the back and forward step to any value. There are also fixed 60-second buttons in the player.")
                     Toggle("Skip sponsor segments", isOn: $skipSponsorSegments)
                         .accessibilityHint("Skips SponsorBlock segments during YouTube stream playback.")
                 } header: {
