@@ -2,6 +2,12 @@
 
 Native SwiftUI port of [BlindRSS](https://github.com/serrebidev/BlindRSS), the screen-reader-first desktop RSS and podcast client. Built for VoiceOver first, following [ios-swiftui-accessibility-techniques](https://github.com/cvs-health/ios-swiftui-accessibility-techniques) by CVS Health.
 
+[![Join SerrebiProjects on Telegram](https://img.shields.io/badge/Telegram-SerrebiProjects-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/SerrebiProjects)
+
+**Questions, bugs, or release news?** Join the [SerrebiProjects Telegram group](https://t.me/SerrebiProjects), the fastest place to get help.
+
+More serrebi projects: [projects.serrebiradio.com](https://projects.serrebiradio.com)
+
 Current release: 0.1.12. The 0.1.12 release closes the feature gap with the desktop app (v2.5.x): everything portable to iOS is now here.
 
 ## Install with AltStore
@@ -82,3 +88,7 @@ CI runs the same check on every push and attaches the report to the build artifa
 ## License
 
 MIT, same as the desktop app. See [LICENSE](LICENSE).
+
+## Credits
+
+See [CREDITS.md](CREDITS.md) for where the ideas behind this project came from, and the third-party projects it builds on.
