@@ -64,7 +64,7 @@ The full gesture guide is in [docs/VOICEOVER.md](docs/VOICEOVER.md). The short v
 
 CI builds and releases the app. To build locally:
 
-1. Open `BlindRSS.xcodeproj` in Xcode 16 or later.
+1. Open `BlindRSS.xcodeproj` in Xcode 27 or later.
 2. Run on a device or simulator (iOS 17 or later). Unsigned CI builds are produced with `CODE_SIGNING_ALLOWED=NO`; AltStore re-signs on install.
 
 Run the accessibility checker from the techniques repo against the sources:
