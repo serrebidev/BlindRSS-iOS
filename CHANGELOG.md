@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.24
+
+Report a problem from the app: Settings, About takes a title and a description, then Report an issue on GitHub opens GitHub's new issue page with both filled in and your BlindRSS version and device added. Sign in on GitHub and press Create.
+
 ## 0.1.22
 
 Player seek options: fixed Back 60 seconds / Forward 60 seconds buttons and a Jump to Time sheet (hours:minutes:seconds, minutes:seconds or seconds), alongside the user-configurable seek interval in Settings and a new custom-seek stepper (5 to 600 seconds).

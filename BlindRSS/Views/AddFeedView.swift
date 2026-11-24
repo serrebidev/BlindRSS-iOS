@@ -103,6 +103,8 @@ struct AddFeedView: View {
 /// Settings (desktop Settings subset for Phase 1). Every Toggle and Picker
 /// keeps its visible label; nothing is labels-hidden without a replacement.
 struct SettingsView: View {
+    @State private var issueTitle = ""
+    @State private var issueDetails = ""
     @AppStorage("refreshOnStartup") private var refreshOnStartup = true
     @AppStorage("refreshInterval") private var refreshInterval = LibraryStore.defaultRefreshInterval
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
@@ -345,6 +347,14 @@ struct SettingsView: View {
                         .accessibilityHint("Opens the project page in your browser.")
                     Link("Desktop BlindRSS", destination: URL(string: "https://github.com/serrebidev/BlindRSS")!)
                         .accessibilityHint("Opens the desktop project page in your browser.")
+                    TextField("Title", text: $issueTitle)
+                    TextField("Description", text: $issueDetails, axis: .vertical)
+                        .lineLimit(4...12)
+                    Link("Report an issue on GitHub", destination: ReportIssue.url(
+                        title: issueTitle, details: issueDetails,
+                        appLine: "BlindRSS for iOS \(appVersion) on \(UIDevice.current.systemName) \(UIDevice.current.systemVersion) \(UIDevice.current.model)"))
+                        .disabled(issueTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityHint("Opens GitHub's new issue page with the title, description and app version filled in. Sign in there and press Create.")
                 } header: {
                     Text("About")
                         .accessibilityAddTraits(.isHeader)
@@ -752,5 +762,22 @@ struct UserGuideView: View {
             } header: { Text("Player").accessibilityAddTraits(.isHeader) }
         }
         .navigationTitle("User Guide")
+    }
+}
+
+/// Settings, About, Report an issue on GitHub: GitHub's new-issue page with the title and
+/// description the user typed filled in and the version line added. GitHub needs the user's own
+/// account, so the last step, Create, is theirs in the browser.
+enum ReportIssue {
+    static func url(title: String, details: String, appLine: String) -> URL {
+        let body = "\(details.trimmingCharacters(in: .whitespacesAndNewlines))\n\n---\n\(appLine)"
+        let page = "https://github.com/serrebidev/BlindRSS-iOS/issues/new"
+        return URL(string: "\(page)?title=\(encode(title.trimmingCharacters(in: .whitespacesAndNewlines)))&body=\(encode(body))")!
+    }
+
+    /// Percent-encode a query value: everything but unreserved ASCII.
+    private static func encode(_ text: String) -> String {
+        let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        return text.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
     }
 }

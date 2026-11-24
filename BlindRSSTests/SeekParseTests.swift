@@ -22,3 +22,12 @@ final class SeekParseTests: XCTestCase {
         XCTAssertNil(AudioPlayer.parseJumpTime("1::2"))
     }
 }
+
+final class ReportIssueTests: XCTestCase {
+    func testIssueLinkCarriesTitleBodyAndVersion() {
+        let url = ReportIssue.url(title: "Photo & video", details: "Line 1\nПривет", appLine: "BlindRSS for iOS 1.0 on iOS 27").absoluteString
+        XCTAssertTrue(url.hasPrefix("https://github.com/serrebidev/BlindRSS-iOS/issues/new?title=Photo%20%26%20video&body=Line%201%0A%D0%9F"), url)
+        XCTAssertTrue(url.hasSuffix("%0A---%0ABlindRSS%20for%20iOS%201.0%20on%20iOS%2027"), url)
+        XCTAssertFalse(url.contains(" ") || url.contains("#"), url)
+    }
+}
